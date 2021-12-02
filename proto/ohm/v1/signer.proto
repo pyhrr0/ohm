@@ -1,0 +1,10 @@
+
+syntax = "proto3";
+
+package ohm.v1;
+
+message Signer {
+  string name = 1;
+  string email = 2;
+  string xpub = 3;
+}

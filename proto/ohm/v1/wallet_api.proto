@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package ohm.v1;
+
+import "ohm/v1/signer.proto";
+import "ohm/v1/psbt.proto";
+
+service WalletAPI {
+  rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
+  rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
+  rpc GetReceiveAddress(GetReceiveAddressRequest) returns (GetReceiveAddressResponse);
+  rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
+  rpc ImportPsbt(ImportPsbtRequest) returns (ImportPsbtResponse);
+  rpc SignPsbt(SignPsbtRequest) returns (SignPsbtResponse);
+  rpc CombineWithOtherPsbtRequest(CombineWithOtherPsbtRequest) returns (CombineWithOtherPsbtResponse);
+  rpc BroadcastPsbt(BroadcastPsbtRequest) returns (BroadcastPsbtResponse);
+}
+
+message GetWalletInfoRequest {
+  string wallet_id = 1;
+}
+
+message GetWalletInfoResponse {
+  string balance = 1;
+}
+
+message CreateWalletRequest {
+  uint64 required_signatures = 1;
+  repeated Signer signers = 2;
+}
+
+message CreateWalletResponse {
+  string wallet_id = 1;
+}
+
+message GetReceiveAddressRequest {
+  string wallet_id = 1;
+}
+
+message GetReceiveAddressResponse {
+  string address = 1;
+}
+
+message CreatePsbtRequest {
+  string wallet_id = 1;
+  string amount = 2;
+  string address = 3;
+}
+
+message CreatePsbtResponse {
+  string psbt_id = 1;
+  string raw_psbt = 2;
+}
+
+message ImportPsbtRequest {
+  string wallet_id = 1;
+  string raw_psbt = 2;
+}
+
+message ImportPsbtResponse {
+  string psbt_id = 1;
+}
+
+message SignPsbtRequest {
+  string wallet_id = 1;
+  string psbt_id = 2;
+}
+
+message SignPsbtResponse {
+  string psbt_id = 1;
+  string raw_psbt = 2;
+}
+
+message CombineWithOtherPsbtRequest {
+  string wallet_id = 1;
+  string psbt_id = 2;
+  Psbt tx = 3;
+}
+
+message CombineWithOtherPsbtResponse {
+  Psbt tx = 1;
+}
+
+message BroadcastPsbtRequest {
+  string wallet_id = 1;
+  string psbt_id = 2;
+}
+
+message BroadcastPsbtResponse {
+  string txid = 1;
+}

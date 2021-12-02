@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package ohm.v1;
+
+import "ohm/v1/signer.proto";
+
+service SignerAPI {
+  rpc GetSignerInfo(GetSignerInfoRequest) returns (GetSignerInfoResponse);
+  rpc RegisterSigner(RegisterSignerRequest) returns (RegisterSignerResponse);
+  rpc FindSigner(FindSignerRequest) returns (FindSignerResponse);
+}
+
+message GetSignerInfoRequest {
+  string signer_id = 1;
+}
+
+message GetSignerInfoResponse {
+  Signer signer = 1;
+  repeated string wallets = 2;
+}
+
+message RegisterSignerRequest {
+  Signer signer = 1;
+}
+
+message RegisterSignerResponse {
+  string signer_id = 1;
+}
+
+message FindSignerRequest {
+  Signer signer = 1;
+}
+
+message FindSignerResponse {
+  repeated Signer signers = 1;
+}
