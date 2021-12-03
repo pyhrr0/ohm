@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package ohm.v1;
+
+import "ohm/v1/models/signer.proto";
+import "ohm/v1/models/wallet.proto";
+
+service OhmAPI {
+  rpc GetSignerInfo(GetSignerInfoRequest) returns (GetSignerInfoResponse);
+  rpc RegisterSigner(RegisterSignerRequest) returns (RegisterSignerResponse);
+  rpc FindSigner(FindSignerRequest) returns (FindSignerResponse);
+
+  rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
+  rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
+  rpc GetReceiveAddress(GetReceiveAddressRequest) returns (GetReceiveAddressResponse);
+  rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
+  rpc ImportPsbt(ImportPsbtRequest) returns (ImportPsbtResponse);
+  rpc SignPsbt(SignPsbtRequest) returns (SignPsbtResponse);
+  rpc CombineWithOtherPsbt(CombineWithOtherPsbtRequest) returns (CombineWithOtherPsbtResponse);
+  rpc BroadcastPsbt(BroadcastPsbtRequest) returns (BroadcastPsbtResponse);
+}
