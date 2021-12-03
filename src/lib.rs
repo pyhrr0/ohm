@@ -1,3 +1,5 @@
+mod grpc;
+
 #[cfg(test)]
 mod tests {
     #[test]
