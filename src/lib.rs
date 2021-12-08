@@ -1,4 +1,4 @@
-mod grpc;
+pub mod grpc;
 
 #[cfg(test)]
 mod tests {
