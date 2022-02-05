@@ -1,4 +1,4 @@
-use ohm::grpc::create_client;
+use ohm::create_client;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]

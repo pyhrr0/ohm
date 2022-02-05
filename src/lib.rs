@@ -1,10 +1,5 @@
-pub mod grpc;
+mod grpc;
+mod config;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+pub use config::Config;
+pub use grpc::{create_server, create_client};

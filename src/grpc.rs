@@ -1,13 +1,17 @@
 use tonic::transport::{server::Router, Channel, Server};
 use tonic::{Request, Response, Status};
 
+use crate::Config;
+
 mod pb {
     tonic::include_proto!("ohm.v1");
 }
 use pb::ohm_api_client as grpc_client;
 use pb::ohm_api_server as grpc_server;
 
-pub struct Servicer {}
+pub struct Servicer {
+    _config: Config,
+}
 
 #[tonic::async_trait]
 impl grpc_server::OhmApi for Servicer {
@@ -98,9 +102,11 @@ pub async fn create_client(
     Ok(client)
 }
 
-pub fn create_server() -> Result<
+pub fn create_server(
+    config: Config,
+) -> Result<
     Router<grpc_server::OhmApiServer<Servicer>, tonic::transport::server::Unimplemented>,
     Box<dyn std::error::Error>,
 > {
-    Ok(Server::builder().add_service(grpc_server::OhmApiServer::new(Servicer {})))
+    Ok(Server::builder().add_service(grpc_server::OhmApiServer::new(Servicer { _config: config })))
 }
