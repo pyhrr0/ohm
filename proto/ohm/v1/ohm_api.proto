@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package ohm.v1;
 
-import "ohm/v1/models/signer.proto";
+import "ohm/v1/models/cosigner.proto";
 import "ohm/v1/models/wallet.proto";
 
 service OhmAPI {
-  rpc GetSignerInfo(GetSignerInfoRequest) returns (GetSignerInfoResponse);
-  rpc RegisterSigner(RegisterSignerRequest) returns (RegisterSignerResponse);
-  rpc FindSigner(FindSignerRequest) returns (FindSignerResponse);
+  rpc GetCosignerInfo(GetCosignerInfoRequest) returns (GetCosignerInfoResponse);
+  rpc RegisterCosigner(RegisterCosignerRequest) returns (RegisterCosignerResponse);
+  rpc FindCosigner(FindCosignerRequest) returns (FindCosignerResponse);
 
   rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);

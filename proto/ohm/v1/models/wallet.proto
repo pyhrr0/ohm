@@ -2,27 +2,50 @@ syntax = "proto3";
 
 package ohm.v1;
 
-import "ohm/v1/models/signer.proto";
-
-message Psbt {
-    // TODO
-}
-
 message GetWalletInfoRequest {
   string wallet_id = 1;
 }
 
+message Transaction {
+    // TODO
+}
+
 message GetWalletInfoResponse {
   string balance = 1;
+  string receive_descriptor = 2;
+  string receive_address = 3;
+  string receive_address_index = 4;
+  string change_descriptor = 5;
+  string change_address = 6;
+  string change_address_index = 7;
+  repeated Transaction transactions = 8;
+}
+
+enum AddressType {
+  ADDRESS_TYPE_UNSPECIFIED = 0;
+  ADDRESS_TYPE_NATIVE_SEGWIT = 1;
+  ADDRESS_TYPE_SEGWIT = 2;
+  ADDRESS_TYPE_TAPROOT = 3;
+}
+
+enum Network {
+  NETWORK_UNSPECIFIED = 0;
+  NETWORK_REGTEST = 1;
+  NETWORK_TESTNET = 2;
+  NETWORK_MAINNET = 3;
 }
 
 message CreateWalletRequest {
-  uint64 required_signatures = 1;
-  repeated Signer signers = 2;
+  AddressType type = 1;
+  Network network = 2;
+  uint64 required_signatures = 3;
+  repeated string signers = 4;
 }
 
 message CreateWalletResponse {
   string wallet_id = 1;
+  string receive_descriptor = 2;
+  string change_descriptor = 3;
 }
 
 message GetReceiveAddressRequest {
@@ -41,12 +64,12 @@ message CreatePsbtRequest {
 
 message CreatePsbtResponse {
   string psbt_id = 1;
-  string raw_psbt = 2;
+  string psbt = 2;
 }
 
 message ImportPsbtRequest {
   string wallet_id = 1;
-  string raw_psbt = 2;
+  string psbt = 2;
 }
 
 message ImportPsbtResponse {
@@ -60,17 +83,17 @@ message SignPsbtRequest {
 
 message SignPsbtResponse {
   string psbt_id = 1;
-  string raw_psbt = 2;
+  string signed_psbt = 2;
 }
 
 message CombineWithOtherPsbtRequest {
   string wallet_id = 1;
   string psbt_id = 2;
-  Psbt tx = 3;
+  string combined_psbt = 3;
 }
 
 message CombineWithOtherPsbtResponse {
-  Psbt tx = 1;
+  string psbt = 1;
 }
 
 message BroadcastPsbtRequest {
@@ -79,5 +102,5 @@ message BroadcastPsbtRequest {
 }
 
 message BroadcastPsbtResponse {
-  string txid = 1;
+  Transaction transaction = 1;
 }

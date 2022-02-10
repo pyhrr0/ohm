@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package ohm.v1;
-
-message Psbt {
-    // TODO
-}

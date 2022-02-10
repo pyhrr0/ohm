@@ -15,24 +15,24 @@ pub struct Servicer {
 
 #[tonic::async_trait]
 impl grpc_server::OhmApi for Servicer {
-    async fn get_signer_info(
+    async fn get_cosigner_info(
         &self,
-        _request: Request<pb::GetSignerInfoRequest>,
-    ) -> Result<Response<pb::GetSignerInfoResponse>, Status> {
+        _request: Request<pb::GetCosignerInfoRequest>,
+    ) -> Result<Response<pb::GetCosignerInfoResponse>, Status> {
         unimplemented!()
     }
 
-    async fn register_signer(
+    async fn register_cosigner(
         &self,
-        _request: Request<pb::RegisterSignerRequest>,
-    ) -> Result<Response<pb::RegisterSignerResponse>, Status> {
+        _request: Request<pb::RegisterCosignerRequest>,
+    ) -> Result<Response<pb::RegisterCosignerResponse>, Status> {
         unimplemented!()
     }
 
-    async fn find_signer(
+    async fn find_cosigner(
         &self,
-        _request: Request<pb::FindSignerRequest>,
-    ) -> Result<Response<pb::FindSignerResponse>, Status> {
+        _request: Request<pb::FindCosignerRequest>,
+    ) -> Result<Response<pb::FindCosignerResponse>, Status> {
         unimplemented!()
     }
 

@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package ohm.v1;
+
+message Xpub {
+  string fingerprint = 1;
+  string derivation_path = 2;
+  string data = 3;
+}
+
+message Cosigner {
+  string email = 1;
+  Xpub public_key = 2;
+}
+
+message GetCosignerInfoRequest {
+  string signer_id = 1;
+}
+
+message GetCosignerInfoResponse {
+  Cosigner signer = 1;
+  repeated string wallets = 2;
+}
+
+message RegisterCosignerRequest {
+  Cosigner signer = 1;
+}
+
+message RegisterCosignerResponse {
+  string signer_id = 1;
+}
+
+message FindCosignerRequest {
+  string email = 1;
+  Xpub public_key = 2;
+}
+
+message FindCosignerResponse {
+  repeated Cosigner signers = 1;
+}
