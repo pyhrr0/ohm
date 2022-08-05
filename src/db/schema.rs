@@ -66,10 +66,4 @@ joinable!(xprv -> wallet (wallet_id));
 joinable!(xpub -> cosigner (cosigner_id));
 joinable!(xpub -> wallet (wallet_id));
 
-allow_tables_to_appear_in_same_query!(
-    cosigner,
-    psbt,
-    wallet,
-    xprv,
-    xpub,
-);
+allow_tables_to_appear_in_same_query!(cosigner, psbt, wallet, xprv, xpub,);

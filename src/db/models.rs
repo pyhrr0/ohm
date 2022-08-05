@@ -87,7 +87,7 @@ impl FromSql<SmallInt, Sqlite> for CosignerType {
     }
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, Associations)]
 #[belongs_to(Wallet)]
 #[table_name = "cosigner"]
 pub struct Cosigner {
@@ -98,7 +98,8 @@ pub struct Cosigner {
     pub wallet_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Associations)]
+#[belongs_to(Wallet)]
 #[table_name = "cosigner"]
 pub struct NewCosigner<'a> {
     pub uuid: &'a str,
@@ -107,7 +108,7 @@ pub struct NewCosigner<'a> {
     pub wallet_id: i32,
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, Associations)]
 #[belongs_to(Cosigner)]
 #[belongs_to(Wallet)]
 #[table_name = "psbt"]
@@ -119,7 +120,9 @@ pub struct Psbt {
     pub wallet_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Associations)]
+#[belongs_to(Cosigner)]
+#[belongs_to(Wallet)]
 #[table_name = "psbt"]
 pub struct NewPsbt<'a> {
     pub uuid: &'a str,
@@ -128,7 +131,7 @@ pub struct NewPsbt<'a> {
     pub wallet_id: i32,
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, Associations)]
 #[belongs_to(Cosigner)]
 #[belongs_to(Wallet)]
 #[table_name = "xpub"]
@@ -142,7 +145,9 @@ pub struct Xpub {
     pub wallet_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Associations)]
+#[belongs_to(Cosigner)]
+#[belongs_to(Wallet)]
 #[table_name = "xpub"]
 pub struct NewXpub<'a> {
     pub uuid: &'a str,
@@ -153,7 +158,7 @@ pub struct NewXpub<'a> {
     pub wallet_id: i32,
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Identifiable, Queryable, Associations)]
 #[belongs_to(Cosigner)]
 #[belongs_to(Wallet)]
 #[table_name = "xprv"]
@@ -167,7 +172,9 @@ pub struct Xprv {
     pub wallet_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Associations)]
+#[belongs_to(Cosigner)]
+#[belongs_to(Wallet)]
 #[table_name = "xprv"]
 pub struct NewXprv<'a> {
     pub uuid: &'a str,

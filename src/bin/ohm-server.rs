@@ -7,14 +7,12 @@ use structopt::{clap::AppSettings, StructOpt};
 use ohm::create_server;
 use ohm::Config;
 
-
 #[derive(Debug, StructOpt)]
 #[structopt(global_settings = &[AppSettings::ColoredHelp])]
 struct Options {
     #[structopt(short, long, default_value = "/etc/ohm/config.yaml")]
     config_file: String,
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
