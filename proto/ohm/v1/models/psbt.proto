@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package ohm.v1;
+
+import "ohm/v1/models/transaction.proto";
+
+message CreatePsbtRequest {
+  string wallet_id = 1;
+  string amount = 2;
+  string address = 3;
+}
+
+message CreatePsbtResponse {
+  string psbt_id = 1;
+  string psbt = 2;
+}
+
+message ImportPsbtRequest {
+  string wallet_id = 1;
+  string psbt = 2;
+}
+
+message ImportPsbtResponse {
+  string psbt_id = 1;
+}
+
+message SignPsbtRequest {
+  string wallet_id = 1;
+  string psbt_id = 2;
+}
+
+message SignPsbtResponse {
+  string psbt_id = 1;
+  string signed_psbt = 2;
+}
+
+message CombineWithOtherPsbtRequest {
+  string wallet_id = 1;
+  string psbt_id = 2;
+  string combined_psbt = 3;
+}
+
+message CombineWithOtherPsbtResponse {
+  string psbt = 1;
+}
+
+message BroadcastPsbtRequest {
+  string wallet_id = 1;
+  string psbt_id = 2;
+}
+
+message BroadcastPsbtResponse {
+  Transaction transaction = 1;
+}

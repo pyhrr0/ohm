@@ -4,6 +4,7 @@ package ohm.v1;
 
 import "ohm/v1/models/cosigner.proto";
 import "ohm/v1/models/wallet.proto";
+import "ohm/v1/models/psbt.proto";
 
 service OhmAPI {
   rpc GetCosignerInfo(GetCosignerInfoRequest) returns (GetCosignerInfoResponse);
@@ -13,6 +14,7 @@ service OhmAPI {
   rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
   rpc GetReceiveAddress(GetReceiveAddressRequest) returns (GetReceiveAddressResponse);
+
   rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
   rpc ImportPsbt(ImportPsbtRequest) returns (ImportPsbtResponse);
   rpc SignPsbt(SignPsbtRequest) returns (SignPsbtResponse);

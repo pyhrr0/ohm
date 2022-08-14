@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package ohm.v1;
+
+message Transaction {
+    // TODO
+}
