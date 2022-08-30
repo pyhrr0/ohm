@@ -4,7 +4,7 @@ use std::process::exit;
 use serde_yaml;
 use structopt::{clap::AppSettings, StructOpt};
 
-use ohm::create_server;
+use ohm::grpc;
 use ohm::Config;
 
 #[derive(Debug, StructOpt)]
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let config: Config = serde_yaml::from_reader(config_file)?;
             let address = format!("{}:{}", &config.bind_addr, &config.port);
 
-            let server = create_server(config)?;
+            let server = grpc::create_server(config)?;
             server.serve(address.parse()?).await?;
         }
         Err(msg) => {

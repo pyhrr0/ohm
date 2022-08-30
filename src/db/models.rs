@@ -13,9 +13,10 @@ use crate::db::schema::{cosigner, psbt, wallet, xprv, xpub};
 #[derive(AsExpression, Clone, Copy, Debug)]
 #[sql_type = "SmallInt"]
 pub enum AddressType {
-    NativeSegwit = 0,
-    Segwit = 1,
-    Taproot = 2,
+    P2sh = 1,
+    P2wsh = 3,
+    P2shwsh = 4,
+    P2tr = 5,
 }
 
 impl ToSql<SmallInt, Sqlite> for AddressType {
@@ -27,9 +28,10 @@ impl ToSql<SmallInt, Sqlite> for AddressType {
 impl FromSql<SmallInt, Sqlite> for AddressType {
     fn from_sql(bytes: Option<&<Sqlite as Backend>::RawValue>) -> deserialize::Result<Self> {
         match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
-            0 => Ok(AddressType::NativeSegwit),
-            1 => Ok(AddressType::Segwit),
-            2 => Ok(AddressType::Taproot),
+            1 => Ok(AddressType::P2sh),
+            2 => Ok(AddressType::P2wsh),
+            3 => Ok(AddressType::P2shwsh),
+            4 => Ok(AddressType::P2tr),
             x => Err(format!("Unrecognized address type {}", x).into()),
         }
     }

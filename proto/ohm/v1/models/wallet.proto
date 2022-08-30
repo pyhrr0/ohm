@@ -4,26 +4,12 @@ package ohm.v1;
 
 import "ohm/v1/models/transaction.proto";
 
-message GetWalletInfoRequest {
-  string wallet_id = 1;
-}
-
-message GetWalletInfoResponse {
-  string balance = 1;
-  string receive_descriptor = 2;
-  string receive_address = 3;
-  string receive_address_index = 4;
-  string change_descriptor = 5;
-  string change_address = 6;
-  string change_address_index = 7;
-  repeated Transaction transactions = 8;
-}
-
 enum AddressType {
   ADDRESS_TYPE_UNSPECIFIED = 0;
-  ADDRESS_TYPE_NATIVE_SEGWIT = 1;
-  ADDRESS_TYPE_SEGWIT = 2;
-  ADDRESS_TYPE_TAPROOT = 3;
+  ADDRESS_TYPE_P2SH = 1;
+  ADDRESS_TYPE_P2WSH = 2;
+  ADDRESS_TYPE_P2SHWSH = 3;
+  ADDRESS_TYPE_P2TR = 4;
 }
 
 enum Network {
@@ -33,17 +19,44 @@ enum Network {
   NETWORK_MAINNET = 3;
 }
 
+message Wallet {
+  string wallet_id = 1;
+  string balance = 2;
+  string receive_descriptor = 3;
+  string receive_address = 4;
+  string receive_address_index = 5;
+  string change_descriptor = 6;
+  string change_address = 7;
+  string change_address_index = 8;
+  repeated Transaction transactions = 9;
+}
+
 message CreateWalletRequest {
-  AddressType type = 1;
+  AddressType address_type = 1;
   Network network = 2;
-  uint64 required_signatures = 3;
+  uint64 required_sigs = 3;
   repeated string cosigner_ids = 4;
 }
 
 message CreateWalletResponse {
+  Wallet wallet = 1;
+}
+
+message GetWalletRequest {
   string wallet_id = 1;
-  string receive_descriptor = 2;
-  string change_descriptor = 3;
+}
+
+message GetWalletResponse {
+  Wallet wallet = 1;
+}
+
+message FindWalletRequest {
+  optional AddressType address_type = 1;
+  optional Network network = 2;
+}
+
+message FindWalletResponse {
+  repeated Wallet wallets = 1;
 }
 
 message GetReceiveAddressRequest {
@@ -52,4 +65,12 @@ message GetReceiveAddressRequest {
 
 message GetReceiveAddressResponse {
   string address = 1;
+}
+
+message ForgetWalletRequest {
+  string wallet_id = 1;
+}
+
+message ForgetWalletResponse {
+  string wallet_id = 1;
 }

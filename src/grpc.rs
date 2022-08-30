@@ -1,11 +1,13 @@
+use bdk::bitcoin;
 use tonic::transport::{server::Router, Channel, Server};
 use tonic::{Request, Response, Status};
 
 use crate::Config;
 
-mod pb {
+pub mod pb {
     tonic::include_proto!("ohm.v1");
 }
+
 use pb::ohm_api_client as grpc_client;
 use pb::ohm_api_server as grpc_server;
 
@@ -13,19 +15,65 @@ pub struct Servicer {
     _config: Config,
 }
 
+impl From<&str> for pb::AddressType {
+    fn from(address_type: &str) -> Self {
+        match address_type {
+            "sh" => pb::AddressType::P2sh,
+            "wsh" => pb::AddressType::P2wsh,
+            "sh_wsh" => pb::AddressType::P2shwsh,
+            "tr" => pb::AddressType::P2tr,
+            _ => {
+                panic!("Received an unsupported network")
+            }
+        }
+    }
+}
+
+impl From<bitcoin::Network> for pb::Network {
+    fn from(network: bitcoin::Network) -> Self {
+        match network {
+            bitcoin::Network::Bitcoin => pb::Network::Mainnet,
+            bitcoin::Network::Testnet => pb::Network::Testnet,
+            bitcoin::Network::Regtest => pb::Network::Regtest,
+            _ => {
+                panic!("Received an unsupported network")
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OhmResponse {
+    RegisterCosigner(Response<pb::RegisterCosignerResponse>),
+    GetCosigner(Response<pb::GetCosignerResponse>),
+    FindCosigner(Response<pb::FindCosignerResponse>),
+    ForgetCosigner(Response<pb::ForgetCosignerResponse>),
+    CreateWallet(Response<pb::CreateWalletResponse>),
+    GetWallet(Response<pb::GetWalletResponse>),
+    FindWallet(Response<pb::FindWalletResponse>),
+    ForgetWallet(Response<pb::ForgetWalletResponse>),
+    GetReceiveAddress(Response<pb::GetReceiveAddressResponse>),
+    CreatePsbt(Response<pb::CreatePsbtResponse>),
+    ImportPsbt(Response<pb::ImportPsbtResponse>),
+    SignPsbt(Response<pb::SignPsbtResponse>),
+    CombineWithOtherPsbt(Response<pb::CombineWithOtherPsbtResponse>),
+    BroadcastPsbt(Response<pb::BroadcastPsbtResponse>),
+    ForgetPsbt(Response<pb::ForgetPsbtResponse>),
+}
+
 #[tonic::async_trait]
 impl grpc_server::OhmApi for Servicer {
-    async fn get_cosigner_info(
-        &self,
-        _request: Request<pb::GetCosignerInfoRequest>,
-    ) -> Result<Response<pb::GetCosignerInfoResponse>, Status> {
-        unimplemented!()
-    }
-
     async fn register_cosigner(
         &self,
         _request: Request<pb::RegisterCosignerRequest>,
     ) -> Result<Response<pb::RegisterCosignerResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn get_cosigner(
+        &self,
+        _request: Request<pb::GetCosignerRequest>,
+    ) -> Result<Response<pb::GetCosignerResponse>, Status> {
         unimplemented!()
     }
 
@@ -36,6 +84,13 @@ impl grpc_server::OhmApi for Servicer {
         unimplemented!()
     }
 
+    async fn forget_cosigner(
+        &self,
+        _request: Request<pb::ForgetCosignerRequest>,
+    ) -> Result<Response<pb::ForgetCosignerResponse>, Status> {
+        unimplemented!()
+    }
+
     async fn create_wallet(
         &self,
         _request: Request<pb::CreateWalletRequest>,
@@ -43,10 +98,17 @@ impl grpc_server::OhmApi for Servicer {
         unimplemented!()
     }
 
-    async fn get_wallet_info(
+    async fn get_wallet(
         &self,
-        _request: Request<pb::GetWalletInfoRequest>,
-    ) -> Result<Response<pb::GetWalletInfoResponse>, Status> {
+        _request: Request<pb::GetWalletRequest>,
+    ) -> Result<Response<pb::GetWalletResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn find_wallet(
+        &self,
+        _request: Request<pb::FindWalletRequest>,
+    ) -> Result<Response<pb::FindWalletResponse>, Status> {
         unimplemented!()
     }
 
@@ -54,6 +116,13 @@ impl grpc_server::OhmApi for Servicer {
         &self,
         _request: Request<pb::GetReceiveAddressRequest>,
     ) -> Result<Response<pb::GetReceiveAddressResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn forget_wallet(
+        &self,
+        _request: Request<pb::ForgetWalletRequest>,
+    ) -> Result<Response<pb::ForgetWalletResponse>, Status> {
         unimplemented!()
     }
 
@@ -91,11 +160,18 @@ impl grpc_server::OhmApi for Servicer {
     ) -> Result<Response<pb::BroadcastPsbtResponse>, Status> {
         unimplemented!()
     }
+
+    async fn forget_psbt(
+        &self,
+        _request: Request<pb::ForgetPsbtRequest>,
+    ) -> Result<Response<pb::ForgetPsbtResponse>, Status> {
+        unimplemented!()
+    }
 }
 
-pub async fn create_client(
-    endpoint: &str,
-) -> Result<grpc_client::OhmApiClient<Channel>, Box<dyn std::error::Error>> {
+pub type Client = grpc_client::OhmApiClient<Channel>;
+
+pub async fn create_client(endpoint: &str) -> Result<Client, Box<dyn std::error::Error>> {
     let channel = Channel::from_shared(endpoint.to_string())?;
     let client = grpc_client::OhmApiClient::new(channel.connect().await?);
 

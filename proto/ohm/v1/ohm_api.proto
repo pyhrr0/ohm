@@ -7,17 +7,21 @@ import "ohm/v1/models/wallet.proto";
 import "ohm/v1/models/psbt.proto";
 
 service OhmAPI {
-  rpc GetCosignerInfo(GetCosignerInfoRequest) returns (GetCosignerInfoResponse);
   rpc RegisterCosigner(RegisterCosignerRequest) returns (RegisterCosignerResponse);
+  rpc GetCosigner(GetCosignerRequest) returns (GetCosignerResponse);
   rpc FindCosigner(FindCosignerRequest) returns (FindCosignerResponse);
+  rpc ForgetCosigner(ForgetCosignerRequest) returns (ForgetCosignerResponse);
 
   rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
-  rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
+  rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
+  rpc FindWallet(FindWalletRequest) returns (FindWalletResponse);
   rpc GetReceiveAddress(GetReceiveAddressRequest) returns (GetReceiveAddressResponse);
+  rpc ForgetWallet(ForgetWalletRequest) returns (ForgetWalletResponse);
 
   rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
   rpc ImportPsbt(ImportPsbtRequest) returns (ImportPsbtResponse);
   rpc SignPsbt(SignPsbtRequest) returns (SignPsbtResponse);
   rpc CombineWithOtherPsbt(CombineWithOtherPsbtRequest) returns (CombineWithOtherPsbtResponse);
   rpc BroadcastPsbt(BroadcastPsbtRequest) returns (BroadcastPsbtResponse);
+  rpc ForgetPsbt(ForgetPsbtRequest) returns (ForgetPsbtResponse);
 }

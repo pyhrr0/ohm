@@ -37,11 +37,11 @@ message SignPsbtResponse {
 message CombineWithOtherPsbtRequest {
   string wallet_id = 1;
   string psbt_id = 2;
-  string combined_psbt = 3;
+  string psbt = 3;
 }
 
 message CombineWithOtherPsbtResponse {
-  string psbt = 1;
+  string combined_psbt = 1;
 }
 
 message BroadcastPsbtRequest {
@@ -51,4 +51,12 @@ message BroadcastPsbtRequest {
 
 message BroadcastPsbtResponse {
   Transaction transaction = 1;
+}
+
+message ForgetPsbtRequest {
+  string psbt_id = 1;
+}
+
+message ForgetPsbtResponse {
+  string psbt_id = 1;
 }

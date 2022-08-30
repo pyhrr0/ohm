@@ -38,7 +38,7 @@ pub fn create_wallet(
     Ok(num_rows)
 }
 
-pub fn create_cosigner(
+pub fn register_cosigner(
     conn: &SqliteConnection,
     cosigner_type: models::CosignerType,
     email: &str,

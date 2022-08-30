@@ -2,22 +2,16 @@ syntax = "proto3";
 
 package ohm.v1;
 
-message Xpub {
-  string fingerprint = 1;
-  string derivation_path = 2;
-  string data = 3;
-}
-
 message Cosigner {
   string email = 1;
-  Xpub public_key = 2;
+  string public_key = 2;
 }
 
-message GetCosignerInfoRequest {
+message GetCosignerRequest {
   string signer_id = 1;
 }
 
-message GetCosignerInfoResponse {
+message GetCosignerResponse {
   Cosigner signer = 1;
   repeated string wallets = 2;
 }
@@ -31,10 +25,18 @@ message RegisterCosignerResponse {
 }
 
 message FindCosignerRequest {
-  string email = 1;
-  Xpub public_key = 2;
+  optional string email = 1;
+  optional string public_key = 2;
 }
 
 message FindCosignerResponse {
   repeated Cosigner signers = 1;
+}
+
+message ForgetCosignerRequest {
+  string signer_id = 1;
+}
+
+message ForgetCosignerResponse {
+  string signer_id = 1;
 }

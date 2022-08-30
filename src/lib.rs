@@ -1,10 +1,8 @@
 #[macro_use]
 extern crate diesel;
 
-mod db;
+pub mod db;
+pub mod grpc;
 
 mod config;
-mod grpc;
-
 pub use config::Config;
-pub use grpc::{create_client, create_server};
