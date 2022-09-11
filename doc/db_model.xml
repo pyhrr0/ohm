@@ -100,7 +100,7 @@
       <datatype>SMALLINT</datatype>
       <default>NULL</default>
     </row>
-    <row name="email" null="1" autoincrement="0">
+    <row name="email_address" null="1" autoincrement="0">
       <datatype>VARCHAR(50)</datatype>
       <default>NULL</default>
     </row>

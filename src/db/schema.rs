@@ -3,7 +3,7 @@ table! {
         id -> Nullable<Integer>,
         uuid -> Text,
         cosigner_type -> Nullable<SmallInt>,
-        email -> Nullable<Text>,
+        email_address -> Nullable<Text>,
         wallet_id -> Nullable<Integer>,
     }
 }

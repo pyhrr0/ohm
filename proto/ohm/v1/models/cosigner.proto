@@ -3,7 +3,7 @@ syntax = "proto3";
 package ohm.v1;
 
 message Cosigner {
-  string email = 1;
+  string email_address = 1;
   string public_key = 2;
 }
 
@@ -25,7 +25,7 @@ message RegisterCosignerResponse {
 }
 
 message FindCosignerRequest {
-  optional string email = 1;
+  optional string email_address = 1;
   optional string public_key = 2;
 }
 

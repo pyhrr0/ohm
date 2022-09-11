@@ -12,15 +12,15 @@ use ohm::grpc::{create_client, pb, Client, OhmResponse as Response};
 #[derive(Debug, StructOpt)]
 enum CosignerOptions {
     Register {
-        email: EmailAddress,
-        pubkey: PublicKey,
+        email_address: EmailAddress,
+        public_key: PublicKey,
     },
     Info {
         cosigner_id: Uuid,
     },
     Find {
-        email: Option<EmailAddress>,
-        pubkey: Option<PublicKey>,
+        email_address: Option<EmailAddress>,
+        public_key: Option<PublicKey>,
     },
     Forget {
         cosigner_id: Uuid,
@@ -104,11 +104,14 @@ async fn handle_cosigner_requests(
     options: &CosignerOptions,
 ) -> Result<Response, Box<dyn Error>> {
     match options {
-        CosignerOptions::Register { email, pubkey } => {
+        CosignerOptions::Register {
+            email_address,
+            public_key,
+        } => {
             let request = Request::new(pb::RegisterCosignerRequest {
                 signer: Some(pb::Cosigner {
-                    email: email.to_string(),
-                    public_key: pubkey.to_string(),
+                    email_address: email_address.to_string(),
+                    public_key: public_key.to_string(),
                 }),
             });
             Ok(Response::RegisterCosigner(
@@ -123,18 +126,13 @@ async fn handle_cosigner_requests(
             Ok(Response::GetCosigner(client.get_cosigner(request).await?))
         }
 
-        CosignerOptions::Find { email, pubkey } => {
-            let email_address = match email {
-                Some(addr) => Some(addr.to_string()),
-                None => None,
-            };
-            let public_key = match pubkey {
-                Some(key) => Some(key.to_string()),
-                None => None,
-            };
+        CosignerOptions::Find {
+            email_address,
+            public_key,
+        } => {
             let request = Request::new(pb::FindCosignerRequest {
-                email: email_address,
-                public_key: public_key,
+                email_address: email_address.clone().map(|addr| addr.to_string()),
+                public_key: public_key.map(|pk| pk.to_string()),
             });
             Ok(Response::FindCosigner(client.find_cosigner(request).await?))
         }
@@ -160,7 +158,7 @@ async fn handle_wallet_requests(
             required_sigs,
             cosigner_ids,
         } => {
-            let cosigners = cosigner_ids.into_iter().map(|c| c.to_string()).collect();
+            let cosigners = cosigner_ids.iter().map(|c| c.to_string()).collect();
             let request = Request::new(pb::CreateWalletRequest {
                 address_type: pb::AddressType::from(address_type.as_str()).into(),
                 network: pb::Network::from(*network).into(),
@@ -181,17 +179,11 @@ async fn handle_wallet_requests(
             address_type,
             network,
         } => {
-            let addr_type = match address_type {
-                Some(addr_type) => Some(pb::AddressType::from(addr_type.as_str()).into()),
-                None => None,
-            };
-            let net = match network {
-                Some(net) => Some(pb::Network::from(*net).into()),
-                None => None,
-            };
             let request = Request::new(pb::FindWalletRequest {
-                address_type: addr_type,
-                network: net,
+                address_type: address_type
+                    .clone()
+                    .map(|addr_type| pb::AddressType::from(addr_type.as_str()).into()),
+                network: network.map(|net| pb::Network::from(net).into()),
             });
             Ok(Response::FindWallet(client.find_wallet(request).await?))
         }
@@ -217,7 +209,7 @@ async fn handle_psbt_requests(
         } => {
             let request = Request::new(pb::CreatePsbtRequest {
                 wallet_id: wallet_id.to_string(),
-                amount: amount.to_string(),
+                amount: amount.clone(),
                 address: address.to_string(),
             });
             Ok(Response::CreatePsbt(client.create_psbt(request).await?))
@@ -225,7 +217,7 @@ async fn handle_psbt_requests(
         PsbtOptions::Import { wallet_id, psbt } => {
             let request = Request::new(pb::ImportPsbtRequest {
                 wallet_id: wallet_id.to_string(),
-                psbt: psbt.to_string(),
+                psbt: psbt.clone(),
             });
             Ok(Response::ImportPsbt(client.import_psbt(request).await?))
         }
@@ -244,7 +236,7 @@ async fn handle_psbt_requests(
             let request = Request::new(pb::CombineWithOtherPsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 psbt_id: psbt_id.to_string(),
-                psbt: psbt.to_string(),
+                psbt: psbt.clone(),
             });
             Ok(Response::CombineWithOtherPsbt(
                 client.combine_with_other_psbt(request).await?,

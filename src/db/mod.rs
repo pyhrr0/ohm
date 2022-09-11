@@ -1,9 +1,10 @@
 use std::error::Error;
 
-use chrono::NaiveDateTime;
+use chrono::Local;
 use diesel::prelude::*;
 use uuid::Uuid;
 
+#[allow(clippy::extra_unused_lifetimes)]
 mod models;
 mod schema;
 
@@ -14,24 +15,20 @@ pub fn establish_connection(db_path: &str) -> SqliteConnection {
 
 pub fn create_wallet(
     conn: &SqliteConnection,
+    _info: &bdk::Wallet<bdk::database::MemoryDatabase>,
     address_type: models::AddressType,
-    recv_descriptor: &str,
-    recv_address_index: Option<i32>,
-    chng_descriptor: &str,
-    chng_address_index: Option<i32>,
     required_signatures: i32,
-    creation_time: NaiveDateTime,
 ) -> Result<usize, Box<dyn Error>> {
     let num_rows = diesel::insert_into(schema::wallet::table)
         .values(&models::NewWallet {
             uuid: &Uuid::new_v4().to_string(),
-            address_type: address_type,
-            receive_descriptor: recv_descriptor,
-            receive_address_index: recv_address_index.unwrap_or(0),
-            change_descriptor: chng_descriptor,
-            change_address_index: chng_address_index.unwrap_or(0),
-            required_signatures: required_signatures,
-            creation_time: creation_time,
+            address_type,
+            receive_descriptor: "TODO",
+            receive_address_index: 42,
+            change_descriptor: "TODO",
+            change_address_index: 42,
+            required_signatures,
+            creation_time: Local::now().naive_local(),
         })
         .execute(conn)?;
 
@@ -41,15 +38,15 @@ pub fn create_wallet(
 pub fn register_cosigner(
     conn: &SqliteConnection,
     cosigner_type: models::CosignerType,
-    email: &str,
+    email_address: &str,
     wallet_id: i32,
 ) -> Result<usize, Box<dyn Error>> {
     let num_rows = diesel::insert_into(schema::cosigner::table)
         .values(&models::NewCosigner {
             uuid: &Uuid::new_v4().to_string(),
-            cosigner_type: cosigner_type,
-            email: email,
-            wallet_id: wallet_id,
+            cosigner_type,
+            email_address,
+            wallet_id,
         })
         .execute(conn)?;
 
@@ -65,9 +62,9 @@ pub fn create_psbt(
     let num_rows = diesel::insert_into(schema::psbt::table)
         .values(&models::NewPsbt {
             uuid: &Uuid::new_v4().to_string(),
-            data: data,
-            cosigner_id: cosigner_id,
-            wallet_id: wallet_id,
+            data,
+            cosigner_id,
+            wallet_id,
         })
         .execute(conn)?;
 
@@ -85,11 +82,11 @@ pub fn create_xpub(
     let num_rows = diesel::insert_into(schema::xpub::table)
         .values(&models::NewXpub {
             uuid: &Uuid::new_v4().to_string(),
-            derivation_path: derivation_path,
-            fingerprint: fingerprint,
-            data: data,
-            cosigner_id: cosigner_id,
-            wallet_id: wallet_id,
+            derivation_path,
+            fingerprint,
+            data,
+            cosigner_id,
+            wallet_id,
         })
         .execute(conn)?;
 
@@ -107,11 +104,11 @@ pub fn create_xprv(
     let num_rows = diesel::insert_into(schema::xprv::table)
         .values(&models::NewXprv {
             uuid: &Uuid::new_v4().to_string(),
-            mnemonic: mnemonic,
-            fingerprint: fingerprint,
-            data: data,
-            cosigner_id: cosigner_id,
-            wallet_id: wallet_id,
+            mnemonic,
+            fingerprint,
+            data,
+            cosigner_id,
+            wallet_id,
         })
         .execute(conn)?;
 

@@ -14,9 +14,9 @@ use crate::db::schema::{cosigner, psbt, wallet, xprv, xpub};
 #[sql_type = "SmallInt"]
 pub enum AddressType {
     P2sh = 1,
-    P2wsh = 3,
-    P2shwsh = 4,
-    P2tr = 5,
+    P2wsh = 2,
+    P2shwsh = 3,
+    P2tr = 4,
 }
 
 impl ToSql<SmallInt, Sqlite> for AddressType {
@@ -96,7 +96,7 @@ pub struct Cosigner {
     pub id: i64,
     pub uuid: String,
     pub cosigner_type: CosignerType,
-    pub email: String,
+    pub email_address: String,
     pub wallet_id: i32,
 }
 
@@ -106,7 +106,7 @@ pub struct Cosigner {
 pub struct NewCosigner<'a> {
     pub uuid: &'a str,
     pub cosigner_type: CosignerType,
-    pub email: &'a str,
+    pub email_address: &'a str,
     pub wallet_id: i32,
 }
 
