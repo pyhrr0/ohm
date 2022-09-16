@@ -4,6 +4,7 @@ table! {
         uuid -> Text,
         cosigner_type -> Nullable<SmallInt>,
         email_address -> Nullable<Text>,
+        public_key -> Nullable<Text>,
         wallet_id -> Nullable<Integer>,
     }
 }

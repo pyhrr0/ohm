@@ -12,6 +12,52 @@ use crate::db::schema::{cosigner, psbt, wallet, xprv, xpub};
 
 #[derive(AsExpression, Clone, Copy, Debug)]
 #[sql_type = "SmallInt"]
+pub enum CosignerType {
+    Internal = 0,
+    External = 1,
+}
+
+impl ToSql<SmallInt, Sqlite> for CosignerType {
+    fn to_sql<W: Write>(&self, out: &mut Output<W, Sqlite>) -> serialize::Result {
+        <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&(*self as i16), out)
+    }
+}
+
+impl FromSql<SmallInt, Sqlite> for CosignerType {
+    fn from_sql(bytes: Option<&<Sqlite as Backend>::RawValue>) -> deserialize::Result<Self> {
+        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
+            0 => Ok(CosignerType::Internal),
+            1 => Ok(CosignerType::External),
+            x => Err(format!("Unrecognized address type {}", x).into()),
+        }
+    }
+}
+
+#[derive(Identifiable, Queryable, Associations)]
+#[belongs_to(Wallet)]
+#[table_name = "cosigner"]
+pub struct Cosigner {
+    pub id: i64,
+    pub uuid: String,
+    pub cosigner_type: CosignerType,
+    pub email_address: String,
+    pub public_key: String,
+    pub wallet_id: Option<i32>,
+}
+
+#[derive(Insertable, Associations)]
+#[belongs_to(Wallet)]
+#[table_name = "cosigner"]
+pub struct NewCosigner<'a> {
+    pub uuid: &'a str,
+    pub cosigner_type: CosignerType,
+    pub email_address: &'a str,
+    pub public_key: &'a str,
+    pub wallet_id: Option<i32>,
+}
+
+#[derive(AsExpression, Clone, Copy, Debug)]
+#[sql_type = "SmallInt"]
 pub enum AddressType {
     P2sh = 1,
     P2wsh = 2,
@@ -64,50 +110,6 @@ pub struct NewWallet<'a> {
     pub change_address_index: i32,
     pub required_signatures: i32,
     pub creation_time: NaiveDateTime,
-}
-
-#[derive(AsExpression, Clone, Copy, Debug)]
-#[sql_type = "SmallInt"]
-pub enum CosignerType {
-    Internal = 0,
-    External = 1,
-}
-
-impl ToSql<SmallInt, Sqlite> for CosignerType {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Sqlite>) -> serialize::Result {
-        <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&(*self as i16), out)
-    }
-}
-
-impl FromSql<SmallInt, Sqlite> for CosignerType {
-    fn from_sql(bytes: Option<&<Sqlite as Backend>::RawValue>) -> deserialize::Result<Self> {
-        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
-            0 => Ok(CosignerType::Internal),
-            1 => Ok(CosignerType::External),
-            x => Err(format!("Unrecognized address type {}", x).into()),
-        }
-    }
-}
-
-#[derive(Identifiable, Queryable, Associations)]
-#[belongs_to(Wallet)]
-#[table_name = "cosigner"]
-pub struct Cosigner {
-    pub id: i64,
-    pub uuid: String,
-    pub cosigner_type: CosignerType,
-    pub email_address: String,
-    pub wallet_id: i32,
-}
-
-#[derive(Insertable, Associations)]
-#[belongs_to(Wallet)]
-#[table_name = "cosigner"]
-pub struct NewCosigner<'a> {
-    pub uuid: &'a str,
-    pub cosigner_type: CosignerType,
-    pub email_address: &'a str,
-    pub wallet_id: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations)]

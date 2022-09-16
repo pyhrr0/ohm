@@ -7,21 +7,21 @@ message Cosigner {
   string public_key = 2;
 }
 
-message GetCosignerRequest {
-  string signer_id = 1;
-}
-
-message GetCosignerResponse {
-  Cosigner signer = 1;
-  repeated string wallets = 2;
-}
-
 message RegisterCosignerRequest {
-  Cosigner signer = 1;
+  Cosigner cosigner = 1;
 }
 
 message RegisterCosignerResponse {
-  string signer_id = 1;
+  string cosigner_id = 1;
+}
+
+message GetCosignerRequest {
+  string cosigner_id = 1;
+}
+
+message GetCosignerResponse {
+  Cosigner cosigner = 1;
+  repeated string wallets = 2;
 }
 
 message FindCosignerRequest {
@@ -30,13 +30,13 @@ message FindCosignerRequest {
 }
 
 message FindCosignerResponse {
-  repeated Cosigner signers = 1;
+  repeated Cosigner cosigners = 1;
 }
 
 message ForgetCosignerRequest {
-  string signer_id = 1;
+  string cosigner_id = 1;
 }
 
 message ForgetCosignerResponse {
-  string signer_id = 1;
+  string cosigner_id = 1;
 }

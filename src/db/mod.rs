@@ -4,13 +4,36 @@ use chrono::Local;
 use diesel::prelude::*;
 use uuid::Uuid;
 
+use crate::grpc;
+
 #[allow(clippy::extra_unused_lifetimes)]
-mod models;
+pub mod models;
 mod schema;
 
 pub fn establish_connection(db_path: &str) -> SqliteConnection {
     SqliteConnection::establish(db_path)
         .unwrap_or_else(|_| panic!("Error connecting to {}", db_path))
+}
+
+pub fn register_cosigner(
+    conn: &SqliteConnection,
+    cosigner_type: models::CosignerType,
+    cosigner: &grpc::pb::Cosigner,
+    wallet_id: Option<i32>,
+) -> Result<Uuid, Box<dyn Error>> {
+    let cosigner_id = Uuid::new_v4();
+
+    diesel::insert_into(schema::cosigner::table)
+        .values(&models::NewCosigner {
+            uuid: &cosigner_id.to_string(),
+            cosigner_type,
+            email_address: &cosigner.email_address,
+            public_key: &cosigner.public_key,
+            wallet_id,
+        })
+        .execute(conn)?;
+
+    Ok(cosigner_id)
 }
 
 pub fn create_wallet(
@@ -29,24 +52,6 @@ pub fn create_wallet(
             change_address_index: 42,
             required_signatures,
             creation_time: Local::now().naive_local(),
-        })
-        .execute(conn)?;
-
-    Ok(num_rows)
-}
-
-pub fn register_cosigner(
-    conn: &SqliteConnection,
-    cosigner_type: models::CosignerType,
-    email_address: &str,
-    wallet_id: i32,
-) -> Result<usize, Box<dyn Error>> {
-    let num_rows = diesel::insert_into(schema::cosigner::table)
-        .values(&models::NewCosigner {
-            uuid: &Uuid::new_v4().to_string(),
-            cosigner_type,
-            email_address,
-            wallet_id,
         })
         .execute(conn)?;
 

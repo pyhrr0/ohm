@@ -109,7 +109,7 @@ async fn handle_cosigner_requests(
             public_key,
         } => {
             let request = Request::new(pb::RegisterCosignerRequest {
-                signer: Some(pb::Cosigner {
+                cosigner: Some(pb::Cosigner {
                     email_address: email_address.to_string(),
                     public_key: public_key.to_string(),
                 }),
@@ -121,7 +121,7 @@ async fn handle_cosigner_requests(
 
         CosignerOptions::Info { cosigner_id } => {
             let request = Request::new(pb::GetCosignerRequest {
-                signer_id: cosigner_id.to_string(),
+                cosigner_id: cosigner_id.to_string(),
             });
             Ok(Response::GetCosigner(client.get_cosigner(request).await?))
         }
@@ -139,7 +139,7 @@ async fn handle_cosigner_requests(
 
         CosignerOptions::Forget { cosigner_id } => {
             let request = Request::new(pb::ForgetCosignerRequest {
-                signer_id: cosigner_id.to_string(),
+                cosigner_id: cosigner_id.to_string(),
             });
             Ok(Response::ForgetCosigner(
                 client.forget_cosigner(request).await?,

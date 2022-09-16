@@ -1,7 +1,11 @@
+use std::sync::Mutex;
+
 use bdk::bitcoin;
+use diesel::prelude::SqliteConnection;
 use tonic::transport::{server::Router, Channel, Server};
 use tonic::{Request, Response, Status};
 
+use crate::db;
 use crate::Config;
 
 pub mod pb {
@@ -13,6 +17,7 @@ use pb::ohm_api_client as grpc_client;
 use pb::ohm_api_server as grpc_server;
 
 pub struct Servicer {
+    db_conn: Mutex<SqliteConnection>,
     _config: Config,
 }
 
@@ -66,9 +71,20 @@ pub enum OhmResponse {
 impl grpc_server::OhmApi for Servicer {
     async fn register_cosigner(
         &self,
-        _request: Request<pb::RegisterCosignerRequest>,
+        request: Request<pb::RegisterCosignerRequest>,
     ) -> Result<Response<pb::RegisterCosignerResponse>, Status> {
-        unimplemented!()
+        let conn = self.db_conn.lock().unwrap();
+        let cosigner = request
+            .into_inner()
+            .cosigner
+            .ok_or_else(|| Status::invalid_argument("Cosigner field should be set"))?;
+
+        match db::register_cosigner(&conn, db::models::CosignerType::External, &cosigner, None) {
+            Ok(cosigner_id) => Ok(Response::new(pb::RegisterCosignerResponse {
+                cosigner_id: cosigner_id.to_string(),
+            })),
+            Err(msg) => Err(Status::internal(&msg.to_string())),
+        }
     }
 
     async fn get_cosigner(
@@ -185,5 +201,10 @@ pub fn create_server(
     Router<grpc_server::OhmApiServer<Servicer>, tonic::transport::server::Unimplemented>,
     Box<dyn std::error::Error>,
 > {
-    Ok(Server::builder().add_service(grpc_server::OhmApiServer::new(Servicer { _config: config })))
+    Ok(
+        Server::builder().add_service(grpc_server::OhmApiServer::new(Servicer {
+            db_conn: Mutex::new(db::establish_connection(&config.db_path.to_string_lossy())),
+            _config: config,
+        })),
+    )
 }
