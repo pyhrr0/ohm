@@ -73,13 +73,18 @@ impl grpc_server::OhmApi for Servicer {
         &self,
         request: Request<pb::RegisterCosignerRequest>,
     ) -> Result<Response<pb::RegisterCosignerResponse>, Status> {
-        let conn = self.db_conn.lock().unwrap();
+        let mut conn = self.db_conn.lock().unwrap();
         let cosigner = request
             .into_inner()
             .cosigner
             .ok_or_else(|| Status::invalid_argument("Cosigner field should be set"))?;
 
-        match db::register_cosigner(&conn, db::models::CosignerType::External, &cosigner, None) {
+        match db::register_cosigner(
+            &mut conn,
+            db::models::CosignerType::External,
+            &cosigner,
+            None,
+        ) {
             Ok(cosigner_id) => Ok(Response::new(pb::RegisterCosignerResponse {
                 cosigner_id: cosigner_id.to_string(),
             })),

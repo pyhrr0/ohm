@@ -16,7 +16,7 @@ pub fn establish_connection(db_path: &str) -> SqliteConnection {
 }
 
 pub fn register_cosigner(
-    conn: &SqliteConnection,
+    conn: &mut SqliteConnection,
     cosigner_type: models::CosignerType,
     cosigner: &grpc::pb::Cosigner,
     wallet_id: Option<i32>,
@@ -37,7 +37,7 @@ pub fn register_cosigner(
 }
 
 pub fn create_wallet(
-    conn: &SqliteConnection,
+    conn: &mut SqliteConnection,
     _info: &bdk::Wallet<bdk::database::MemoryDatabase>,
     address_type: models::AddressType,
     required_signatures: i32,
@@ -59,7 +59,7 @@ pub fn create_wallet(
 }
 
 pub fn create_psbt(
-    conn: &SqliteConnection,
+    conn: &mut SqliteConnection,
     data: &str,
     cosigner_id: i32,
     wallet_id: i32,
@@ -77,7 +77,7 @@ pub fn create_psbt(
 }
 
 pub fn create_xpub(
-    conn: &SqliteConnection,
+    conn: &mut SqliteConnection,
     derivation_path: &str,
     fingerprint: &str,
     data: &str,
@@ -99,7 +99,7 @@ pub fn create_xpub(
 }
 
 pub fn create_xprv(
-    conn: &SqliteConnection,
+    conn: &mut SqliteConnection,
     mnemonic: &str,
     fingerprint: &str,
     data: &str,
