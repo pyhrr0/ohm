@@ -55,7 +55,7 @@ enum PsbtOptions {
         amount: String,
         address: Address,
     },
-    Import {
+    Register {
         wallet_id: Uuid,
         psbt: String,
     },
@@ -214,12 +214,12 @@ async fn handle_psbt_requests(
             });
             Ok(Response::CreatePsbt(client.create_psbt(request).await?))
         }
-        PsbtOptions::Import { wallet_id, psbt } => {
-            let request = Request::new(pb::ImportPsbtRequest {
+        PsbtOptions::Register { wallet_id, psbt } => {
+            let request = Request::new(pb::RegisterPsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 psbt: psbt.clone(),
             });
-            Ok(Response::ImportPsbt(client.import_psbt(request).await?))
+            Ok(Response::RegisterPsbt(client.register_psbt(request).await?))
         }
         PsbtOptions::Sign { wallet_id, psbt_id } => {
             let request = Request::new(pb::SignPsbtRequest {

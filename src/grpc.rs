@@ -60,7 +60,7 @@ pub enum OhmResponse {
     ForgetWallet(Response<pb::ForgetWalletResponse>),
     GetReceiveAddress(Response<pb::GetReceiveAddressResponse>),
     CreatePsbt(Response<pb::CreatePsbtResponse>),
-    ImportPsbt(Response<pb::ImportPsbtResponse>),
+    RegisterPsbt(Response<pb::RegisterPsbtResponse>),
     SignPsbt(Response<pb::SignPsbtResponse>),
     CombineWithOtherPsbt(Response<pb::CombineWithOtherPsbtResponse>),
     BroadcastPsbt(Response<pb::BroadcastPsbtResponse>),
@@ -79,14 +79,9 @@ impl grpc_server::OhmApi for Servicer {
             .cosigner
             .ok_or_else(|| Status::invalid_argument("Cosigner field should be set"))?;
 
-        match db::register_cosigner(
-            &mut conn,
-            db::models::CosignerType::External,
-            &cosigner,
-            None,
-        ) {
+        match db::store_cosigner(&mut conn, &cosigner, db::models::CosignerType::External) {
             Ok(cosigner_id) => Ok(Response::new(pb::RegisterCosignerResponse {
-                cosigner_id: cosigner_id.to_string(),
+                cosigner_id: cosigner_id.uuid,
             })),
             Err(msg) => Err(Status::internal(&msg.to_string())),
         }
@@ -155,10 +150,10 @@ impl grpc_server::OhmApi for Servicer {
         unimplemented!()
     }
 
-    async fn import_psbt(
+    async fn register_psbt(
         &self,
-        _request: Request<pb::ImportPsbtRequest>,
-    ) -> Result<Response<pb::ImportPsbtResponse>, Status> {
+        _request: Request<pb::RegisterPsbtRequest>,
+    ) -> Result<Response<pb::RegisterPsbtResponse>, Status> {
         unimplemented!()
     }
 

@@ -1,70 +1,74 @@
-table! {
+// @generated automatically by Diesel CLI.
+
+diesel::table! {
     cosigner (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         uuid -> Text,
-        cosigner_type -> Nullable<SmallInt>,
-        email_address -> Nullable<Text>,
-        public_key -> Nullable<Text>,
-        wallet_id -> Nullable<Integer>,
-    }
-}
-
-table! {
-    psbt (id) {
-        id -> Nullable<Integer>,
-        uuid -> Text,
-        data -> Text,
-        cosigner_id -> Nullable<Integer>,
-        wallet_id -> Nullable<Integer>,
-    }
-}
-
-table! {
-    wallet (id) {
-        id -> Nullable<Integer>,
-        uuid -> Text,
-        address_type -> SmallInt,
-        receive_descriptor -> Text,
-        receive_address_index -> Integer,
-        receive_address -> Text,
-        change_descriptor -> Text,
-        change_address_index -> Integer,
-        change_address -> Text,
-        required_signatures -> Integer,
+        type_ -> SmallInt,
+        email_address -> Text,
+        public_key -> Text,
         creation_time -> Timestamp,
     }
 }
 
-table! {
-    xprv (id) {
-        id -> Nullable<Integer>,
-        uuid -> Nullable<Text>,
-        fingerprint -> Nullable<Text>,
-        mnemonic -> Nullable<Text>,
-        data -> Nullable<Text>,
-        cosigner_id -> Nullable<Integer>,
-        wallet_id -> Nullable<Integer>,
-    }
-}
-
-table! {
-    xpub (id) {
-        id -> Nullable<Integer>,
-        uuid -> Nullable<Text>,
-        derivation_path -> Nullable<Text>,
-        fingerprint -> Nullable<Text>,
+diesel::table! {
+    psbt (id) {
+        id -> Integer,
+        uuid -> Text,
         data -> Text,
-        cosigner_id -> Nullable<Integer>,
-        wallet_id -> Nullable<Integer>,
+        creation_time -> Timestamp,
+        cosigner_id -> Integer,
+        wallet_id -> Integer,
     }
 }
 
-joinable!(cosigner -> wallet (wallet_id));
-joinable!(psbt -> cosigner (cosigner_id));
-joinable!(psbt -> wallet (wallet_id));
-joinable!(xprv -> cosigner (cosigner_id));
-joinable!(xprv -> wallet (wallet_id));
-joinable!(xpub -> cosigner (cosigner_id));
-joinable!(xpub -> wallet (wallet_id));
+diesel::table! {
+    wallet (id) {
+        id -> Integer,
+        uuid -> Text,
+        address_type -> SmallInt,
+        receive_descriptor -> Text,
+        receive_address_index -> BigInt,
+        receive_address -> Text,
+        change_descriptor -> Text,
+        change_address_index -> BigInt,
+        change_address -> Text,
+        required_signatures -> SmallInt,
+        creation_time -> Timestamp,
+    }
+}
 
-allow_tables_to_appear_in_same_query!(cosigner, psbt, wallet, xprv, xpub,);
+diesel::table! {
+    xprv (id) {
+        id -> Integer,
+        uuid -> Text,
+        fingerprint -> Text,
+        mnemonic -> Text,
+        data -> Text,
+        creation_time -> Timestamp,
+        cosigner_id -> Integer,
+        wallet_id -> Integer,
+    }
+}
+
+diesel::table! {
+    xpub (id) {
+        id -> Integer,
+        uuid -> Text,
+        derivation_path -> Text,
+        fingerprint -> Text,
+        data -> Text,
+        creation_time -> Timestamp,
+        cosigner_id -> Integer,
+        wallet_id -> Integer,
+    }
+}
+
+diesel::joinable!(psbt -> cosigner (cosigner_id));
+diesel::joinable!(psbt -> wallet (wallet_id));
+diesel::joinable!(xprv -> cosigner (cosigner_id));
+diesel::joinable!(xprv -> wallet (wallet_id));
+diesel::joinable!(xpub -> cosigner (cosigner_id));
+diesel::joinable!(xpub -> wallet (wallet_id));
+
+diesel::allow_tables_to_appear_in_same_query!(cosigner, psbt, wallet, xprv, xpub,);

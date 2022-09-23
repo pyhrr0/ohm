@@ -1,31 +1,23 @@
 use chrono::NaiveDateTime;
 use diesel::deserialize::FromSql;
-use diesel::serialize::{Output, ToSql};
+use diesel::serialize::{IsNull, Output, ToSql};
 use diesel::sql_types::SmallInt;
 use diesel::sqlite::{Sqlite, SqliteValue};
 use diesel::{deserialize, serialize};
 
 use crate::db::schema::{cosigner, psbt, wallet, xprv, xpub};
 
-#[derive(AsExpression, Clone, Copy, Debug)]
+#[repr(i16)]
+#[derive(AsExpression, Debug, Clone, Copy, FromSqlRow)]
 #[diesel(sql_type = SmallInt)]
 pub enum CosignerType {
     Internal = 1,
     External = 2,
 }
 
-impl ToSql<SmallInt, Sqlite> for CosignerType {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
-        match self {
-            CosignerType::Internal => <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&1, out),
-            CosignerType::External => <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&2, out),
-        }
-    }
-}
-
 impl FromSql<SmallInt, Sqlite> for CosignerType {
-    fn from_sql(bytes: SqliteValue) -> deserialize::Result<Self> {
-        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
+    fn from_sql(value: SqliteValue) -> deserialize::Result<Self> {
+        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(value)? {
             0 => Ok(CosignerType::Internal),
             1 => Ok(CosignerType::External),
             x => Err(format!("Unrecognized address type {}", x).into()),
@@ -33,30 +25,35 @@ impl FromSql<SmallInt, Sqlite> for CosignerType {
     }
 }
 
-#[derive(Identifiable, Queryable, Associations)]
-#[diesel(belongs_to(Wallet))]
-#[diesel(table_name = cosigner)]
-pub struct Cosigner {
-    pub id: i64,
-    pub uuid: String,
-    pub cosigner_type: CosignerType,
-    pub email_address: String,
-    pub public_key: String,
-    pub wallet_id: Option<i32>,
+impl ToSql<SmallInt, Sqlite> for CosignerType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
+        out.set_value(*self as i32);
+        Ok(IsNull::No)
+    }
 }
 
-#[derive(Insertable, Associations)]
-#[diesel(belongs_to(Wallet))]
+#[derive(Identifiable, Queryable)]
+#[diesel(table_name = cosigner)]
+pub struct Cosigner {
+    pub id: i32,
+    pub uuid: String,
+    pub type_: CosignerType,
+    pub email_address: String,
+    pub public_key: String,
+    pub creation_time: NaiveDateTime,
+}
+
+#[derive(Insertable)]
 #[diesel(table_name = cosigner)]
 pub struct NewCosigner<'a> {
     pub uuid: &'a str,
-    pub cosigner_type: CosignerType,
+    pub type_: CosignerType,
     pub email_address: &'a str,
     pub public_key: &'a str,
-    pub wallet_id: Option<i32>,
+    pub creation_time: NaiveDateTime,
 }
 
-#[derive(AsExpression, Clone, Copy, Debug)]
+#[derive(AsExpression, Debug, Copy, Clone, FromSqlRow)]
 #[diesel(sql_type = SmallInt)]
 pub enum AddressType {
     P2sh = 1,
@@ -67,12 +64,8 @@ pub enum AddressType {
 
 impl ToSql<SmallInt, Sqlite> for AddressType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
-        match self {
-            AddressType::P2sh => <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&1, out),
-            AddressType::P2wsh => <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&2, out),
-            AddressType::P2shwsh => <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&3, out),
-            AddressType::P2tr => <i16 as ToSql<SmallInt, Sqlite>>::to_sql(&4, out),
-        }
+        out.set_value(*self as i32);
+        Ok(IsNull::No)
     }
 }
 
@@ -91,7 +84,7 @@ impl FromSql<SmallInt, Sqlite> for AddressType {
 #[derive(Debug, Queryable, Identifiable)]
 #[diesel(table_name = wallet)]
 pub struct Wallet {
-    pub id: i64,
+    pub id: i32,
     pub uuid: String,
     pub address_type: AddressType,
     pub receive_descriptor: String,
@@ -100,7 +93,7 @@ pub struct Wallet {
     pub change_descriptor: String,
     pub change_address_index: i64,
     pub change_address: String,
-    pub required_signatures: i64,
+    pub required_signatures: i16,
     pub creation_time: NaiveDateTime,
 }
 
@@ -110,34 +103,11 @@ pub struct NewWallet<'a> {
     pub uuid: &'a str,
     pub address_type: AddressType,
     pub receive_descriptor: &'a str,
-    pub receive_address_index: i32,
+    pub receive_address_index: i64,
     pub change_descriptor: &'a str,
-    pub change_address_index: i32,
-    pub required_signatures: i32,
+    pub change_address_index: i64,
+    pub required_signatures: i16,
     pub creation_time: NaiveDateTime,
-}
-
-#[derive(Identifiable, Queryable, Associations)]
-#[diesel(belongs_to(Cosigner))]
-#[diesel(belongs_to(Wallet))]
-#[diesel(table_name = psbt)]
-pub struct Psbt {
-    pub id: i64,
-    pub uuid: String,
-    pub data: String,
-    pub cosigner_id: i32,
-    pub wallet_id: i32,
-}
-
-#[derive(Insertable, Associations)]
-#[diesel(belongs_to(Cosigner))]
-#[diesel(belongs_to(Wallet))]
-#[diesel(table_name = psbt)]
-pub struct NewPsbt<'a> {
-    pub uuid: &'a str,
-    pub data: &'a str,
-    pub cosigner_id: i32,
-    pub wallet_id: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations)]
@@ -145,11 +115,12 @@ pub struct NewPsbt<'a> {
 #[diesel(belongs_to(Wallet))]
 #[diesel(table_name = xpub)]
 pub struct Xpub {
-    pub id: i64,
+    pub id: i32,
     pub uuid: String,
     pub derivation_path: String,
     pub fingerprint: String,
     pub data: String,
+    pub creation_time: NaiveDateTime,
     pub cosigner_id: i32,
     pub wallet_id: i32,
 }
@@ -163,6 +134,7 @@ pub struct NewXpub<'a> {
     pub derivation_path: &'a str,
     pub fingerprint: &'a str,
     pub data: &'a str,
+    pub creation_time: NaiveDateTime,
     pub cosigner_id: i32,
     pub wallet_id: i32,
 }
@@ -177,6 +149,7 @@ pub struct Xprv {
     pub mnemonic: String,
     pub fingerprint: String,
     pub data: String,
+    pub creation_time: NaiveDateTime,
     pub cosigner_id: i32,
     pub wallet_id: i32,
 }
@@ -190,6 +163,31 @@ pub struct NewXprv<'a> {
     pub mnemonic: &'a str,
     pub fingerprint: &'a str,
     pub data: &'a str,
+    pub creation_time: NaiveDateTime,
+    pub cosigner_id: i32,
+    pub wallet_id: i32,
+}
+#[derive(Identifiable, Queryable, Associations)]
+#[diesel(belongs_to(Cosigner))]
+#[diesel(belongs_to(Wallet))]
+#[diesel(table_name = psbt)]
+pub struct Psbt {
+    pub id: i32,
+    pub uuid: String,
+    pub data: String,
+    pub creation_time: NaiveDateTime,
+    pub cosigner_id: i32,
+    pub wallet_id: i32,
+}
+
+#[derive(Insertable, Associations)]
+#[diesel(belongs_to(Cosigner))]
+#[diesel(belongs_to(Wallet))]
+#[diesel(table_name = psbt)]
+pub struct NewPsbt<'a> {
+    pub uuid: &'a str,
+    pub data: &'a str,
+    pub creation_time: NaiveDateTime,
     pub cosigner_id: i32,
     pub wallet_id: i32,
 }

@@ -15,12 +15,12 @@ message CreatePsbtResponse {
   string psbt = 2;
 }
 
-message ImportPsbtRequest {
+message RegisterPsbtRequest {
   string wallet_id = 1;
   string psbt = 2;
 }
 
-message ImportPsbtResponse {
+message RegisterPsbtResponse {
   string psbt_id = 1;
 }
 

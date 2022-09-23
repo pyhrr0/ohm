@@ -19,7 +19,7 @@ service OhmAPI {
   rpc ForgetWallet(ForgetWalletRequest) returns (ForgetWalletResponse);
 
   rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
-  rpc ImportPsbt(ImportPsbtRequest) returns (ImportPsbtResponse);
+  rpc RegisterPsbt(RegisterPsbtRequest) returns (RegisterPsbtResponse);
   rpc SignPsbt(SignPsbtRequest) returns (SignPsbtResponse);
   rpc CombineWithOtherPsbt(CombineWithOtherPsbtRequest) returns (CombineWithOtherPsbtResponse);
   rpc BroadcastPsbt(BroadcastPsbtRequest) returns (BroadcastPsbtResponse);
