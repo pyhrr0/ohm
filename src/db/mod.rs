@@ -1,18 +1,18 @@
-use diesel::prelude::*;
+use diesel::{Connection, SqliteConnection};
+
+mod schema;
 
 mod cosigner;
-pub mod models;
 mod psbt;
-pub mod schema;
 mod wallet;
 mod xprv;
 mod xpub;
 
-pub use cosigner::store_cosigner;
-pub use psbt::store_psbt;
-pub use wallet::store_wallet;
-pub use xprv::store_xprv;
-pub use xpub::store_xpub;
+pub use cosigner::{CosignerType, NewCosigner as Cosigner};
+pub use psbt::NewPsbt as Psbt;
+pub use wallet::{AddressType, NewWallet as Wallet};
+pub use xprv::NewXprv as Xprv;
+pub use xpub::NewXpub as Xpub;
 
 pub fn establish_connection(db_path: &str) -> SqliteConnection {
     SqliteConnection::establish(db_path)

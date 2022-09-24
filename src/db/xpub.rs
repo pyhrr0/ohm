@@ -1,31 +1,65 @@
 use std::error::Error;
 
-use chrono::Local;
+use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use super::models::NewXpub;
 use super::schema;
 
-pub fn store_xpub(
-    conn: &mut SqliteConnection,
-    derivation_path: &str,
-    fingerprint: &str,
-    data: &str,
-    cosigner_id: i32,
-    wallet_id: i32,
-) -> Result<usize, Box<dyn Error>> {
-    let num_rows = diesel::insert_into(schema::xpub::table)
-        .values(&NewXpub {
-            uuid: &Uuid::new_v4().to_string(),
+use super::cosigner::Cosigner;
+use super::wallet::Wallet;
+
+#[derive(Identifiable, Queryable, Associations)]
+#[diesel(belongs_to(Cosigner))]
+#[diesel(belongs_to(Wallet))]
+#[diesel(table_name = schema::xpub)]
+pub struct Xpub {
+    pub id: i32,
+    pub uuid: String,
+    pub derivation_path: String,
+    pub fingerprint: String,
+    pub data: String,
+    pub creation_time: NaiveDateTime,
+    pub cosigner_id: i32,
+    pub wallet_id: i32,
+}
+
+#[derive(Insertable, Associations)]
+#[diesel(belongs_to(Cosigner))]
+#[diesel(belongs_to(Wallet))]
+#[diesel(table_name = schema::xpub)]
+pub struct NewXpub<'a> {
+    pub uuid: String,
+    pub derivation_path: &'a str,
+    pub fingerprint: &'a str,
+    pub data: &'a str,
+    pub creation_time: NaiveDateTime,
+    pub cosigner_id: i32,
+    pub wallet_id: i32,
+}
+
+impl<'a> NewXpub<'a> {
+    pub fn new(
+        derivation_path: &'a str,
+        fingerprint: &'a str,
+        data: &'a str,
+        cosigner_id: i32,
+        wallet_id: i32,
+    ) -> Self {
+        Self {
+            uuid: Uuid::new_v4().to_string(),
             derivation_path,
             fingerprint,
             data,
+            creation_time: Utc::now().naive_local(),
             cosigner_id,
             wallet_id,
-            creation_time: Local::now().naive_local(),
-        })
-        .execute(conn)?;
+        }
+    }
 
-    Ok(num_rows)
+    pub fn store(&self, connection: &mut SqliteConnection) -> Result<Xpub, Box<dyn Error>> {
+        Ok(diesel::insert_into(schema::xpub::table)
+            .values(self)
+            .get_result(connection)?)
+    }
 }
