@@ -2,7 +2,9 @@
 extern crate diesel;
 
 pub mod db;
-pub mod grpc;
+
+mod grpc;
+pub use grpc::{proto, Client, Response, Server};
 
 mod config;
 pub use config::Config;

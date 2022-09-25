@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::prelude::*;
+use diesel::{RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;

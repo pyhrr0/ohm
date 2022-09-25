@@ -2,11 +2,11 @@ use std::error::Error;
 
 use chrono::{NaiveDateTime, Utc};
 use diesel::deserialize::FromSql;
-use diesel::prelude::*;
 use diesel::serialize::{IsNull, Output, ToSql};
 use diesel::sql_types::SmallInt;
 use diesel::sqlite::{Sqlite, SqliteValue};
 use diesel::{deserialize, serialize};
+use diesel::{RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;

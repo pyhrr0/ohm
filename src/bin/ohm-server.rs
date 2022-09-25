@@ -1,11 +1,10 @@
+use std::error::Error;
 use std::fs::File;
-use std::process::exit;
 
-use serde_yaml;
 use structopt::{clap::AppSettings, StructOpt};
 
-use ohm::grpc;
 use ohm::Config;
+use ohm::Server;
 
 #[derive(Debug, StructOpt)]
 #[structopt(global_settings = &[AppSettings::ColoredHelp])]
@@ -15,22 +14,16 @@ struct Options {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let cli_opts = Options::from_args();
 
-    match File::open(cli_opts.config_file) {
-        Ok(config_file) => {
-            let config: Config = serde_yaml::from_reader(config_file)?;
-            let address = format!("{}:{}", &config.bind_addr, &config.port);
+    let config_file = File::open(cli_opts.config_file)
+        .map_err(|msg| format!("Failed to open config file: {}", msg))?;
+    let config: Config = serde_yaml::from_reader(config_file)?;
+    let address = format!("{}:{}", &config.bind_addr, &config.port);
 
-            let server = grpc::create_server(config)?;
-            server.serve(address.parse()?).await?;
-        }
-        Err(msg) => {
-            eprintln!("Failed to open config file: {}", msg);
-            exit(1)
-        }
-    }
+    let server = Server::new(config)?;
+    server.serve(address.parse()?).await?;
 
     Ok(())
 }

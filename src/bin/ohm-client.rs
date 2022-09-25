@@ -7,7 +7,7 @@ use tonic::Request;
 use url::Url;
 use uuid::Uuid;
 
-use ohm::grpc::{create_client, pb, Client, OhmResponse as Response};
+use ohm::{proto, Client, Response};
 
 #[derive(Debug, StructOpt)]
 enum CosignerOptions {
@@ -108,8 +108,8 @@ async fn handle_cosigner_requests(
             email_address,
             public_key,
         } => {
-            let request = Request::new(pb::RegisterCosignerRequest {
-                cosigner: Some(pb::Cosigner {
+            let request = Request::new(proto::RegisterCosignerRequest {
+                cosigner: Some(proto::Cosigner {
                     email_address: email_address.to_string(),
                     public_key: public_key.to_string(),
                 }),
@@ -120,7 +120,7 @@ async fn handle_cosigner_requests(
         }
 
         CosignerOptions::Info { cosigner_id } => {
-            let request = Request::new(pb::GetCosignerRequest {
+            let request = Request::new(proto::GetCosignerRequest {
                 cosigner_id: cosigner_id.to_string(),
             });
             Ok(Response::GetCosigner(client.get_cosigner(request).await?))
@@ -130,7 +130,7 @@ async fn handle_cosigner_requests(
             email_address,
             public_key,
         } => {
-            let request = Request::new(pb::FindCosignerRequest {
+            let request = Request::new(proto::FindCosignerRequest {
                 email_address: email_address.clone().map(|addr| addr.to_string()),
                 public_key: public_key.map(|pk| pk.to_string()),
             });
@@ -138,7 +138,7 @@ async fn handle_cosigner_requests(
         }
 
         CosignerOptions::Forget { cosigner_id } => {
-            let request = Request::new(pb::ForgetCosignerRequest {
+            let request = Request::new(proto::ForgetCosignerRequest {
                 cosigner_id: cosigner_id.to_string(),
             });
             Ok(Response::ForgetCosigner(
@@ -159,9 +159,9 @@ async fn handle_wallet_requests(
             cosigner_ids,
         } => {
             let cosigners = cosigner_ids.iter().map(|c| c.to_string()).collect();
-            let request = Request::new(pb::CreateWalletRequest {
-                address_type: pb::AddressType::from(address_type.as_str()).into(),
-                network: pb::Network::from(*network).into(),
+            let request = Request::new(proto::CreateWalletRequest {
+                address_type: proto::AddressType::from(address_type.as_str()).into(),
+                network: proto::Network::from(*network).into(),
                 required_sigs: *required_sigs,
                 cosigner_ids: cosigners,
             });
@@ -169,7 +169,7 @@ async fn handle_wallet_requests(
         }
 
         WalletOptions::Info { wallet_id } => {
-            let request = Request::new(pb::GetWalletRequest {
+            let request = Request::new(proto::GetWalletRequest {
                 wallet_id: wallet_id.to_string(),
             });
             Ok(Response::GetWallet(client.get_wallet(request).await?))
@@ -179,17 +179,17 @@ async fn handle_wallet_requests(
             address_type,
             network,
         } => {
-            let request = Request::new(pb::FindWalletRequest {
+            let request = Request::new(proto::FindWalletRequest {
                 address_type: address_type
                     .clone()
-                    .map(|addr_type| pb::AddressType::from(addr_type.as_str()).into()),
-                network: network.map(|net| pb::Network::from(net).into()),
+                    .map(|addr_type| proto::AddressType::from(addr_type.as_str()).into()),
+                network: network.map(|net| proto::Network::from(net).into()),
             });
             Ok(Response::FindWallet(client.find_wallet(request).await?))
         }
 
         WalletOptions::Forget { wallet_id } => {
-            let request = Request::new(pb::ForgetWalletRequest {
+            let request = Request::new(proto::ForgetWalletRequest {
                 wallet_id: wallet_id.to_string(),
             });
             Ok(Response::ForgetWallet(client.forget_wallet(request).await?))
@@ -207,7 +207,7 @@ async fn handle_psbt_requests(
             amount,
             address,
         } => {
-            let request = Request::new(pb::CreatePsbtRequest {
+            let request = Request::new(proto::CreatePsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 amount: amount.clone(),
                 address: address.to_string(),
@@ -215,14 +215,14 @@ async fn handle_psbt_requests(
             Ok(Response::CreatePsbt(client.create_psbt(request).await?))
         }
         PsbtOptions::Register { wallet_id, psbt } => {
-            let request = Request::new(pb::RegisterPsbtRequest {
+            let request = Request::new(proto::RegisterPsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 psbt: psbt.clone(),
             });
             Ok(Response::RegisterPsbt(client.register_psbt(request).await?))
         }
         PsbtOptions::Sign { wallet_id, psbt_id } => {
-            let request = Request::new(pb::SignPsbtRequest {
+            let request = Request::new(proto::SignPsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 psbt_id: psbt_id.to_string(),
             });
@@ -233,7 +233,7 @@ async fn handle_psbt_requests(
             psbt_id,
             psbt,
         } => {
-            let request = Request::new(pb::CombineWithOtherPsbtRequest {
+            let request = Request::new(proto::CombineWithOtherPsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 psbt_id: psbt_id.to_string(),
                 psbt: psbt.clone(),
@@ -243,7 +243,7 @@ async fn handle_psbt_requests(
             ))
         }
         PsbtOptions::Broadcast { wallet_id, psbt_id } => {
-            let request = Request::new(pb::BroadcastPsbtRequest {
+            let request = Request::new(proto::BroadcastPsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 psbt_id: psbt_id.to_string(),
             });
@@ -252,7 +252,7 @@ async fn handle_psbt_requests(
             ))
         }
         PsbtOptions::Forget { psbt_id } => {
-            let request = Request::new(pb::ForgetPsbtRequest {
+            let request = Request::new(proto::ForgetPsbtRequest {
                 psbt_id: psbt_id.to_string(),
             });
             Ok(Response::ForgetPsbt(client.forget_psbt(request).await?))
@@ -263,9 +263,9 @@ async fn handle_psbt_requests(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let opts = Options::from_args();
-    let mut client = create_client(opts.endpoint.as_str()).await?;
+    let mut client = Client::attach(opts.endpoint.as_str()).await?;
 
-    let response: Response = match opts.command {
+    let response = match opts.command {
         Command::Cosigner(opts) => handle_cosigner_requests(&mut client, &opts).await?,
         Command::Wallet(opts) => handle_wallet_requests(&mut client, &opts).await?,
         Command::Psbt(opts) => handle_psbt_requests(&mut client, &opts).await?,
