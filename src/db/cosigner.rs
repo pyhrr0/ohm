@@ -6,11 +6,11 @@ use diesel::deserialize::FromSql;
 use diesel::serialize::{IsNull, Output, ToSql};
 use diesel::sql_types::SmallInt;
 use diesel::sqlite::{Sqlite, SqliteValue};
-use diesel::{deserialize, serialize};
-use diesel::{RunQueryDsl, SqliteConnection};
+use diesel::{deserialize, serialize, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;
+use schema::cosigner::dsl::cosigner;
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Clone, Copy, FromSqlRow)]
@@ -73,5 +73,37 @@ impl<'a> NewCosigner<'a> {
         Ok(diesel::insert_into(schema::cosigner::table)
             .values(self)
             .get_result(connection)?)
+    }
+
+    pub fn fetch(
+        connection: &mut SqliteConnection,
+        uuid: Option<&str>,
+        email_address: Option<&str>,
+        public_key: Option<&str>,
+        cosigner_type: Option<CosignerType>,
+    ) -> Result<Vec<Cosigner>, Box<dyn Error>> {
+        let mut query = cosigner.into_boxed();
+
+        if let Some(uuid) = uuid {
+            query = query.filter(schema::cosigner::uuid.eq(uuid));
+        }
+
+        if let Some(email_address) = email_address {
+            query = query.filter(schema::cosigner::email_address.eq(email_address));
+        }
+
+        if let Some(public_key) = public_key {
+            query = query.filter(schema::cosigner::public_key.eq(public_key));
+        }
+
+        if let Some(cosigner_type) = cosigner_type {
+            query = query.filter(schema::cosigner::type_.eq(cosigner_type));
+        }
+
+        Ok(query.load::<Cosigner>(connection)?)
+    }
+
+    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
+        Ok(diesel::delete(cosigner.filter(schema::cosigner::uuid.eq(uuid))).execute(connection)?)
     }
 }

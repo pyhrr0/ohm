@@ -27,6 +27,7 @@ diesel::table! {
         id -> Integer,
         uuid -> Text,
         address_type -> SmallInt,
+        network -> SmallInt,
         receive_descriptor -> Text,
         receive_address_index -> BigInt,
         receive_address -> Text,

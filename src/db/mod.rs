@@ -10,7 +10,7 @@ mod xpub;
 
 pub use cosigner::{CosignerType, NewCosigner as Cosigner};
 pub use psbt::NewPsbt as Psbt;
-pub use wallet::{AddressType, NewWallet as Wallet};
+pub use wallet::{AddressType, Network, NewWallet as Wallet};
 pub use xprv::NewXprv as Xprv;
 pub use xpub::NewXpub as Xpub;
 

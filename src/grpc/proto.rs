@@ -11,7 +11,7 @@ impl From<&str> for AddressType {
             "sh_wsh" => AddressType::P2shwsh,
             "tr" => AddressType::P2tr,
             _ => {
-                panic!("Received an unsupported network")
+                panic!("proto contains an unsupported address type")
             }
         }
     }
@@ -24,7 +24,7 @@ impl From<bitcoin::Network> for Network {
             bitcoin::Network::Testnet => Network::Testnet,
             bitcoin::Network::Regtest => Network::Regtest,
             _ => {
-                panic!("Received an unsupported network")
+                panic!("proto contains an unsupported network type")
             }
         }
     }

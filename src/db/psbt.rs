@@ -1,10 +1,11 @@
 use std::error::Error;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::{RunQueryDsl, SqliteConnection};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;
+use schema::psbt::dsl::psbt;
 
 use super::cosigner::Cosigner;
 use super::wallet::Wallet;
@@ -49,5 +50,27 @@ impl<'a> NewPsbt<'a> {
         Ok(diesel::insert_into(schema::psbt::table)
             .values(self)
             .get_result(connection)?)
+    }
+
+    pub fn fetch(
+        connection: &mut SqliteConnection,
+        uuid: Option<&str>,
+        wallet_id: Option<i32>,
+    ) -> Result<Vec<Psbt>, Box<dyn Error>> {
+        let mut query = psbt.into_boxed();
+
+        if let Some(uuid) = uuid {
+            query = query.filter(schema::psbt::uuid.eq(uuid));
+        }
+
+        if let Some(wallet_id) = wallet_id {
+            query = query.filter(schema::psbt::wallet_id.eq(wallet_id));
+        }
+
+        Ok(query.load::<Psbt>(connection)?)
+    }
+
+    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
+        Ok(diesel::delete(psbt.filter(schema::psbt::uuid.eq(uuid))).execute(connection)?)
     }
 }

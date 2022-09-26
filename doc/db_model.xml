@@ -48,6 +48,10 @@
       <datatype>SMALLINT</datatype>
       <default>NULL</default>
     </row>
+    <row name="network" null="0" autoincrement="0">
+      <datatype>SMALLINT</datatype>
+      <default>NULL</default>
+    </row>
     <row name="receive_descriptor" null="0" autoincrement="0">
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>

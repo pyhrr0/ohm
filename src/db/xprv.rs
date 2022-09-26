@@ -1,10 +1,11 @@
 use std::error::Error;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::{RunQueryDsl, SqliteConnection};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;
+use schema::xprv::dsl::xprv;
 
 use super::cosigner::Cosigner;
 use super::wallet::Wallet;
@@ -61,5 +62,18 @@ impl<'a> NewXprv<'a> {
         Ok(diesel::insert_into(schema::xprv::table)
             .values(self)
             .get_result(connection)?)
+    }
+
+    pub fn fetch(
+        connection: &mut SqliteConnection,
+        uuid: &str,
+    ) -> Result<Vec<Xprv>, Box<dyn Error>> {
+        Ok(xprv
+            .filter(schema::xprv::uuid.eq(uuid))
+            .load::<Xprv>(connection)?)
+    }
+
+    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
+        Ok(diesel::delete(xprv.filter(schema::xprv::uuid.eq(uuid))).execute(connection)?)
     }
 }

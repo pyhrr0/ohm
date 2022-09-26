@@ -1,10 +1,11 @@
 use std::error::Error;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::{RunQueryDsl, SqliteConnection};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;
+use schema::xpub::dsl::xpub;
 
 use super::cosigner::Cosigner;
 use super::wallet::Wallet;
@@ -61,5 +62,18 @@ impl<'a> NewXpub<'a> {
         Ok(diesel::insert_into(schema::xpub::table)
             .values(self)
             .get_result(connection)?)
+    }
+
+    pub fn fetch(
+        connection: &mut SqliteConnection,
+        uuid: &str,
+    ) -> Result<Vec<Xpub>, Box<dyn Error>> {
+        Ok(xpub
+            .filter(schema::xpub::uuid.eq(uuid))
+            .load::<Xpub>(connection)?)
+    }
+
+    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
+        Ok(diesel::delete(xpub.filter(schema::xpub::uuid.eq(uuid))).execute(connection)?)
     }
 }

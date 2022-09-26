@@ -12,7 +12,7 @@ use proto::ohm_api_client as grpc_client;
 use proto::ohm_api_server as grpc_server;
 
 pub struct Servicer {
-    db_conn: Mutex<SqliteConnection>,
+    db_connection: Mutex<SqliteConnection>,
     _config: Config,
 }
 
@@ -22,7 +22,7 @@ impl grpc_server::OhmApi for Servicer {
         &self,
         request: Request<proto::RegisterCosignerRequest>,
     ) -> Result<Response<proto::RegisterCosignerResponse>, Status> {
-        let mut conn = self.db_conn.lock().unwrap();
+        let mut conn = self.db_connection.lock().unwrap();
         let inner = request
             .into_inner()
             .cosigner
@@ -113,6 +113,20 @@ impl grpc_server::OhmApi for Servicer {
         unimplemented!()
     }
 
+    async fn get_psbt(
+        &self,
+        _request: Request<proto::GetPsbtRequest>,
+    ) -> Result<Response<proto::GetPsbtResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn find_psbt(
+        &self,
+        _request: Request<proto::FindPsbtRequest>,
+    ) -> Result<Response<proto::FindPsbtResponse>, Status> {
+        unimplemented!()
+    }
+
     async fn sign_psbt(
         &self,
         _request: Request<proto::SignPsbtRequest>,
@@ -151,7 +165,9 @@ impl Servicer {
     > {
         Ok(
             Server::builder().add_service(grpc_server::OhmApiServer::new(Servicer {
-                db_conn: Mutex::new(db::establish_connection(&config.db_path.to_string_lossy())),
+                db_connection: Mutex::new(db::establish_connection(
+                    &config.db_path.to_string_lossy(),
+                )),
                 _config: config,
             })),
         )
@@ -182,6 +198,8 @@ pub enum OhmResponse {
     GetReceiveAddress(Response<proto::GetReceiveAddressResponse>),
     CreatePsbt(Response<proto::CreatePsbtResponse>),
     RegisterPsbt(Response<proto::RegisterPsbtResponse>),
+    GetPsbt(Response<proto::GetPsbtResponse>),
+    FindPsbt(Response<proto::FindPsbtResponse>),
     SignPsbt(Response<proto::SignPsbtResponse>),
     CombineWithOtherPsbt(Response<proto::CombineWithOtherPsbtResponse>),
     BroadcastPsbt(Response<proto::BroadcastPsbtResponse>),

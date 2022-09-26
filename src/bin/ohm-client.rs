@@ -59,17 +59,20 @@ enum PsbtOptions {
         wallet_id: Uuid,
         psbt: String,
     },
-    Sign {
+    Info {
+        psbt_id: Uuid,
+    },
+    Find {
         wallet_id: Uuid,
+    },
+    Sign {
         psbt_id: Uuid,
     },
     Combine {
-        wallet_id: Uuid,
         psbt_id: Uuid,
         psbt: String,
     },
     Broadcast {
-        wallet_id: Uuid,
         psbt_id: Uuid,
     },
     Forget {
@@ -214,6 +217,7 @@ async fn handle_psbt_requests(
             });
             Ok(Response::CreatePsbt(client.create_psbt(request).await?))
         }
+
         PsbtOptions::Register { wallet_id, psbt } => {
             let request = Request::new(proto::RegisterPsbtRequest {
                 wallet_id: wallet_id.to_string(),
@@ -221,20 +225,30 @@ async fn handle_psbt_requests(
             });
             Ok(Response::RegisterPsbt(client.register_psbt(request).await?))
         }
-        PsbtOptions::Sign { wallet_id, psbt_id } => {
-            let request = Request::new(proto::SignPsbtRequest {
+
+        PsbtOptions::Info { psbt_id } => {
+            let request = Request::new(proto::GetPsbtRequest {
+                psbt_id: psbt_id.to_string(),
+            });
+            Ok(Response::GetPsbt(client.get_psbt(request).await?))
+        }
+
+        PsbtOptions::Find { wallet_id } => {
+            let request = Request::new(proto::FindPsbtRequest {
                 wallet_id: wallet_id.to_string(),
+            });
+            Ok(Response::FindPsbt(client.find_psbt(request).await?))
+        }
+
+        PsbtOptions::Sign { psbt_id } => {
+            let request = Request::new(proto::SignPsbtRequest {
                 psbt_id: psbt_id.to_string(),
             });
             Ok(Response::SignPsbt(client.sign_psbt(request).await?))
         }
-        PsbtOptions::Combine {
-            wallet_id,
-            psbt_id,
-            psbt,
-        } => {
+
+        PsbtOptions::Combine { psbt_id, psbt } => {
             let request = Request::new(proto::CombineWithOtherPsbtRequest {
-                wallet_id: wallet_id.to_string(),
                 psbt_id: psbt_id.to_string(),
                 psbt: psbt.clone(),
             });
@@ -242,15 +256,16 @@ async fn handle_psbt_requests(
                 client.combine_with_other_psbt(request).await?,
             ))
         }
-        PsbtOptions::Broadcast { wallet_id, psbt_id } => {
+
+        PsbtOptions::Broadcast { psbt_id } => {
             let request = Request::new(proto::BroadcastPsbtRequest {
-                wallet_id: wallet_id.to_string(),
                 psbt_id: psbt_id.to_string(),
             });
             Ok(Response::BroadcastPsbt(
                 client.broadcast_psbt(request).await?,
             ))
         }
+
         PsbtOptions::Forget { psbt_id } => {
             let request = Request::new(proto::ForgetPsbtRequest {
                 psbt_id: psbt_id.to_string(),
