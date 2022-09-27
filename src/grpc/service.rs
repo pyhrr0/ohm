@@ -22,32 +22,57 @@ impl grpc_server::OhmApi for Servicer {
         &self,
         request: Request<proto::RegisterCosignerRequest>,
     ) -> Result<Response<proto::RegisterCosignerResponse>, Status> {
-        let mut conn = self.db_connection.lock().unwrap();
-        let inner = request
-            .into_inner()
-            .cosigner
-            .ok_or_else(|| Status::invalid_argument("Cosigner field should be set"))?;
+        let mut connection = self.db_connection.lock().unwrap();
+        let inner = request.into_inner();
 
         let cosigner = db::Cosigner::new(
+            db::CosignerType::External,
             &inner.email_address,
             &inner.public_key,
-            db::CosignerType::External,
         );
 
         let record = cosigner
-            .store(&mut conn)
+            .store(&mut connection)
             .map_err(|err| Status::internal(&err.to_string()))?;
 
         Ok(Response::new(proto::RegisterCosignerResponse {
-            cosigner_id: record.uuid,
+            cosigner: Some(proto::Cosigner {
+                cosigner_id: record.uuid,
+                email_address: record.email_address,
+                public_key: record.public_key,
+                wallet_id: record.wallet_uuid,
+            }),
         }))
     }
 
     async fn get_cosigner(
         &self,
-        _request: Request<proto::GetCosignerRequest>,
+        request: Request<proto::GetCosignerRequest>,
     ) -> Result<Response<proto::GetCosignerResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+
+        let mut records = db::Cosigner::fetch(
+            &mut connection,
+            Some(&request.into_inner().cosigner_id),
+            None,
+            None,
+            Some(db::CosignerType::External),
+        )
+        .map_err(|err| Status::internal(&err.to_string()))?;
+
+        let mut cosigner = None;
+        if !records.is_empty() {
+            let record = records.remove(0);
+
+            cosigner = Some(proto::Cosigner {
+                cosigner_id: record.uuid,
+                email_address: record.email_address,
+                public_key: record.public_key,
+                wallet_id: record.wallet_uuid,
+            });
+        }
+
+        Ok(Response::new(proto::GetCosignerResponse { cosigner }))
     }
 
     async fn find_cosigner(

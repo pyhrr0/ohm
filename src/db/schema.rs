@@ -4,6 +4,7 @@ diesel::table! {
     cosigner (id) {
         id -> Integer,
         uuid -> Text,
+        wallet_uuid -> Nullable<Text>,
         type_ -> SmallInt,
         email_address -> Text,
         public_key -> Text,

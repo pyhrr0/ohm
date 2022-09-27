@@ -100,7 +100,11 @@
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
     </row>
-    <row name="cosigner_type" null="0" autoincrement="0">
+    <row name="wallet_uuid" null="1" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
+      <default>NULL</default>
+    </row>
+    <row name="type" null="0" autoincrement="0">
       <datatype>SMALLINT</datatype>
       <default>NULL</default>
     </row>

@@ -42,6 +42,7 @@ impl ToSql<SmallInt, Sqlite> for CosignerType {
 pub struct Cosigner {
     pub id: i32,
     pub uuid: String,
+    pub wallet_uuid: Option<String>,
     pub type_: CosignerType,
     pub email_address: String,
     pub public_key: String,
@@ -52,6 +53,7 @@ pub struct Cosigner {
 #[diesel(table_name = schema::cosigner)]
 pub struct NewCosigner<'a> {
     pub uuid: String,
+    pub wallet_uuid: Option<&'a str>,
     pub type_: CosignerType,
     pub email_address: &'a str,
     pub public_key: &'a str,
@@ -59,9 +61,10 @@ pub struct NewCosigner<'a> {
 }
 
 impl<'a> NewCosigner<'a> {
-    pub fn new(email_address: &'a str, public_key: &'a str, type_: CosignerType) -> Self {
+    pub fn new(type_: CosignerType, email_address: &'a str, public_key: &'a str) -> Self {
         Self {
             uuid: Uuid::new_v4().to_string(),
+            wallet_uuid: None,
             type_,
             email_address,
             public_key,
@@ -80,7 +83,7 @@ impl<'a> NewCosigner<'a> {
         uuid: Option<&str>,
         email_address: Option<&str>,
         public_key: Option<&str>,
-        cosigner_type: Option<CosignerType>,
+        type_: Option<CosignerType>,
     ) -> Result<Vec<Cosigner>, Box<dyn Error>> {
         let mut query = cosigner.into_boxed();
 
@@ -96,8 +99,8 @@ impl<'a> NewCosigner<'a> {
             query = query.filter(schema::cosigner::public_key.eq(public_key));
         }
 
-        if let Some(cosigner_type) = cosigner_type {
-            query = query.filter(schema::cosigner::type_.eq(cosigner_type));
+        if let Some(type_) = type_ {
+            query = query.filter(schema::cosigner::type_.eq(type_));
         }
 
         Ok(query.load::<Cosigner>(connection)?)

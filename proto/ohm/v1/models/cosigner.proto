@@ -3,16 +3,19 @@ syntax = "proto3";
 package ohm.v1;
 
 message Cosigner {
+  string cosigner_id = 1;
+  string email_address = 2;
+  string public_key = 3;
+  optional string wallet_id = 4;
+}
+
+message RegisterCosignerRequest {
   string email_address = 1;
   string public_key = 2;
 }
 
-message RegisterCosignerRequest {
-  Cosigner cosigner = 1;
-}
-
 message RegisterCosignerResponse {
-  string cosigner_id = 1;
+  Cosigner cosigner = 1;
 }
 
 message GetCosignerRequest {
@@ -21,7 +24,6 @@ message GetCosignerRequest {
 
 message GetCosignerResponse {
   Cosigner cosigner = 1;
-  repeated string wallets = 2;
 }
 
 message FindCosignerRequest {

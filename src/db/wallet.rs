@@ -143,11 +143,16 @@ impl<'a> NewWallet<'a> {
 
     pub fn fetch(
         connection: &mut SqliteConnection,
+        id: Option<i32>,
         uuid: Option<&str>,
         address_type: Option<AddressType>,
         network: Option<Network>,
     ) -> Result<Vec<Wallet>, Box<dyn Error>> {
         let mut query = wallet.into_boxed();
+
+        if let Some(id) = id {
+            query = query.filter(schema::wallet::id.eq(id));
+        }
 
         if let Some(uuid) = uuid {
             query = query.filter(schema::wallet::uuid.eq(uuid));

@@ -112,10 +112,8 @@ async fn handle_cosigner_requests(
             public_key,
         } => {
             let request = Request::new(proto::RegisterCosignerRequest {
-                cosigner: Some(proto::Cosigner {
-                    email_address: email_address.to_string(),
-                    public_key: public_key.to_string(),
-                }),
+                email_address: email_address.to_string(),
+                public_key: public_key.to_string(),
             });
             Ok(Response::RegisterCosigner(
                 client.register_cosigner(request).await?,
