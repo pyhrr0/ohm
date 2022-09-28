@@ -77,9 +77,31 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn find_cosigner(
         &self,
-        _request: Request<proto::FindCosignerRequest>,
+        request: Request<proto::FindCosignerRequest>,
     ) -> Result<Response<proto::FindCosignerResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let inner = request.into_inner();
+
+        let records = db::Cosigner::fetch(
+            &mut connection,
+            None,
+            inner.email_address.as_deref(),
+            inner.public_key.as_deref(),
+            Some(db::CosignerType::External),
+        )
+        .map_err(|err| Status::internal(&err.to_string()))?;
+
+        let mut cosigners = vec![];
+        for record in records {
+            cosigners.push(proto::Cosigner {
+                cosigner_id: record.uuid,
+                email_address: record.email_address,
+                public_key: record.public_key,
+                wallet_id: record.wallet_uuid,
+            });
+        }
+
+        Ok(Response::new(proto::FindCosignerResponse { cosigners }))
     }
 
     async fn forget_cosigner(
