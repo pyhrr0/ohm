@@ -147,9 +147,15 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn forget_wallet(
         &self,
-        _request: Request<proto::ForgetWalletRequest>,
+        request: Request<proto::ForgetWalletRequest>,
     ) -> Result<Response<proto::ForgetWalletResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let wallet_id = request.into_inner().wallet_id;
+
+        db::Psbt::remove(&mut connection, &wallet_id)
+            .map_err(|err| Status::internal(&err.to_string()))?;
+
+        Ok(Response::new(proto::ForgetWalletResponse { wallet_id }))
     }
 
     async fn create_psbt(
