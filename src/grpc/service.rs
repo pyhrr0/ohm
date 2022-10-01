@@ -106,9 +106,15 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn forget_cosigner(
         &self,
-        _request: Request<proto::ForgetCosignerRequest>,
+        request: Request<proto::ForgetCosignerRequest>,
     ) -> Result<Response<proto::ForgetCosignerResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let cosigner_id = request.into_inner().cosigner_id;
+
+        db::Cosigner::remove(&mut connection, &cosigner_id)
+            .map_err(|err| Status::internal(&err.to_string()))?;
+
+        Ok(Response::new(proto::ForgetCosignerResponse { cosigner_id }))
     }
 
     async fn create_wallet(
