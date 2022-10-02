@@ -126,9 +126,37 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn get_wallet(
         &self,
-        _request: Request<proto::GetWalletRequest>,
+        request: Request<proto::GetWalletRequest>,
     ) -> Result<Response<proto::GetWalletResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+
+        let mut records = db::Wallet::fetch(
+            &mut connection,
+            None,
+            Some(&request.into_inner().wallet_id),
+            None,
+            None,
+        )
+        .map_err(|err| Status::internal(&err.to_string()))?;
+
+        let mut wallet = None;
+        if !records.is_empty() {
+            let record = records.remove(0);
+
+            wallet = Some(proto::Wallet {
+                wallet_id: record.uuid,
+                balance: record.balance.to_string(),
+                receive_descriptor: record.receive_descriptor,
+                receive_address: record.receive_address,
+                receive_address_index: record.receive_address_index as u64,
+                change_descriptor: record.change_descriptor,
+                change_address: record.change_address,
+                change_address_index: record.change_address_index as u64,
+                transactions: vec![proto::Transaction {}], // TODO
+            });
+        }
+
+        Ok(Response::new(proto::GetWalletResponse { wallet }))
     }
 
     async fn find_wallet(

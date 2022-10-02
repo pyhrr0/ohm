@@ -24,10 +24,10 @@ message Wallet {
   string balance = 2;
   string receive_descriptor = 3;
   string receive_address = 4;
-  string receive_address_index = 5;
+  uint64 receive_address_index = 5;
   string change_descriptor = 6;
   string change_address = 7;
-  string change_address_index = 8;
+  uint64 change_address_index = 8;
   repeated Transaction transactions = 9;
 }
 

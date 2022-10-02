@@ -35,6 +35,7 @@ diesel::table! {
         change_descriptor -> Text,
         change_address_index -> BigInt,
         change_address -> Text,
+        balance -> Text,
         required_signatures -> SmallInt,
         creation_time -> Timestamp,
     }

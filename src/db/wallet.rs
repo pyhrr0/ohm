@@ -1,12 +1,15 @@
 use std::error::Error;
+use std::fmt;
+use std::str::FromStr;
 
 use bdk::bitcoin;
 use chrono::{NaiveDateTime, Utc};
 use diesel::deserialize::FromSql;
 use diesel::serialize::{IsNull, Output, ToSql};
-use diesel::sql_types::SmallInt;
+use diesel::sql_types::{SmallInt, Text};
 use diesel::sqlite::{Sqlite, SqliteValue};
 use diesel::{deserialize, serialize, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
+use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use super::schema;
@@ -85,6 +88,30 @@ impl From<bitcoin::Network> for Network {
     }
 }
 
+#[derive(AsExpression, Debug, FromSqlRow)]
+#[diesel(sql_type = Text)]
+pub struct DecimalWrapper(Decimal);
+
+impl fmt::Display for DecimalWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl ToSql<Text, Sqlite> for DecimalWrapper {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
+        out.set_value(self.to_string());
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for DecimalWrapper {
+    fn from_sql(bytes: SqliteValue) -> deserialize::Result<Self> {
+        let decimal = Decimal::from_str(&<String as FromSql<Text, Sqlite>>::from_sql(bytes)?)?;
+        Ok(DecimalWrapper(decimal))
+    }
+}
+
 #[derive(Debug, Queryable, Identifiable)]
 #[diesel(table_name = schema::wallet)]
 pub struct Wallet {
@@ -98,6 +125,7 @@ pub struct Wallet {
     pub change_descriptor: String,
     pub change_address_index: i64,
     pub change_address: String,
+    pub balance: DecimalWrapper,
     pub required_signatures: i16,
     pub creation_time: NaiveDateTime,
 }
@@ -113,6 +141,7 @@ pub struct NewWallet<'a> {
     pub change_descriptor: &'a str,
     pub change_address_index: i64,
     pub required_signatures: i16,
+    pub balance: DecimalWrapper,
     pub creation_time: NaiveDateTime,
 }
 
@@ -121,9 +150,7 @@ impl<'a> NewWallet<'a> {
         address_type: AddressType,
         network: Network,
         receive_descriptor: &'a str,
-        receive_address_index: i64,
         change_descriptor: &'a str,
-        change_address_index: i64,
         required_signatures: i16,
     ) -> Self {
         Self {
@@ -131,10 +158,11 @@ impl<'a> NewWallet<'a> {
             address_type,
             network,
             receive_descriptor,
-            receive_address_index,
+            receive_address_index: 0,
             change_descriptor,
-            change_address_index,
+            change_address_index: 0,
             required_signatures,
+            balance: DecimalWrapper(Decimal::new(0, 0)),
             creation_time: Utc::now().naive_local(),
         }
     }
