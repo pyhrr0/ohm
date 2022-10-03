@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use diesel::prelude::SqliteConnection;
+use int_enum::IntEnum;
 use tonic::transport::{server::Router, Channel, Server};
 use tonic::{Request, Response, Status};
 
@@ -161,9 +162,46 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn find_wallet(
         &self,
-        _request: Request<proto::FindWalletRequest>,
+        request: Request<proto::FindWalletRequest>,
     ) -> Result<Response<proto::FindWalletResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let inner = request.into_inner();
+
+        let mut address_type = None;
+        if let Some(type_) = inner.address_type {
+            address_type = Some(
+                db::AddressType::from_int(type_ as i16)
+                    .map_err(|_| Status::internal("Invalid address type"))?,
+            );
+        }
+
+        let mut network = None;
+        if let Some(net) = inner.network {
+            network = Some(
+                db::Network::from_int(net as i16)
+                    .map_err(|_| Status::internal("Invalid network"))?,
+            );
+        }
+
+        let records = db::Wallet::fetch(&mut connection, None, None, address_type, network)
+            .map_err(|err| Status::internal(&err.to_string()))?;
+
+        let mut wallets = vec![];
+        for record in records {
+            wallets.push(proto::Wallet {
+                wallet_id: record.uuid,
+                receive_descriptor: record.receive_descriptor,
+                receive_address: record.receive_address,
+                receive_address_index: record.receive_address_index as u64,
+                change_descriptor: record.change_descriptor,
+                change_address: record.change_address,
+                change_address_index: record.change_address_index as u64,
+                balance: record.balance.to_string(),
+                transactions: vec![proto::Transaction {}], // TODO
+            });
+        }
+
+        Ok(Response::new(proto::FindWalletResponse { wallets }))
     }
 
     async fn get_receive_address(

@@ -9,6 +9,7 @@ use diesel::serialize::{IsNull, Output, ToSql};
 use diesel::sql_types::{SmallInt, Text};
 use diesel::sqlite::{Sqlite, SqliteValue};
 use diesel::{deserialize, serialize, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
+use int_enum::IntEnum;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -20,7 +21,7 @@ use schema::xprv::dsl::xprv;
 use schema::xpub::dsl::xpub;
 
 #[repr(i16)]
-#[derive(AsExpression, Debug, Copy, Clone, FromSqlRow)]
+#[derive(AsExpression, Debug, Copy, Clone, FromSqlRow, IntEnum)]
 #[diesel(sql_type = SmallInt)]
 pub enum AddressType {
     P2sh = 1,
@@ -49,7 +50,7 @@ impl FromSql<SmallInt, Sqlite> for AddressType {
 }
 
 #[repr(i16)]
-#[derive(AsExpression, Debug, Copy, Clone, FromSqlRow)]
+#[derive(AsExpression, Debug, Copy, Clone, FromSqlRow, IntEnum)]
 #[diesel(sql_type = SmallInt)]
 pub enum Network {
     Regtest = 1,
