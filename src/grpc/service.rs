@@ -275,9 +275,15 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn forget_psbt(
         &self,
-        _request: Request<proto::ForgetPsbtRequest>,
+        request: Request<proto::ForgetPsbtRequest>,
     ) -> Result<Response<proto::ForgetPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let psbt_id = request.into_inner().psbt_id;
+
+        db::Psbt::remove(&mut connection, &psbt_id)
+            .map_err(|err| Status::internal(&err.to_string()))?;
+
+        Ok(Response::new(proto::ForgetPsbtResponse { psbt_id }))
     }
 }
 
