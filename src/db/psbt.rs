@@ -7,42 +7,32 @@ use uuid::Uuid;
 use super::schema;
 use schema::psbt::dsl::psbt;
 
-use super::cosigner::Cosigner;
-use super::wallet::Wallet;
-
-#[derive(Identifiable, Queryable, Associations)]
-#[diesel(belongs_to(Cosigner))]
-#[diesel(belongs_to(Wallet))]
+#[derive(Identifiable, Queryable)]
 #[diesel(table_name = schema::psbt)]
 pub struct Psbt {
     pub id: i32,
     pub uuid: String,
-    pub data: String,
+    pub base64: String,
     pub creation_time: NaiveDateTime,
-    pub cosigner_id: i32,
-    pub wallet_id: i32,
+    pub wallet_uuid: String,
 }
 
-#[derive(Insertable, Associations)]
-#[diesel(belongs_to(Cosigner))]
-#[diesel(belongs_to(Wallet))]
+#[derive(Insertable)]
 #[diesel(table_name = schema::psbt)]
 pub struct NewPsbt<'a> {
     pub uuid: String,
-    pub data: &'a str,
+    pub base64: &'a str,
     pub creation_time: NaiveDateTime,
-    pub cosigner_id: i32,
-    pub wallet_id: i32,
+    pub wallet_uuid: &'a str,
 }
 
 impl<'a> NewPsbt<'a> {
-    pub fn new(data: &'a str, cosigner_id: i32, wallet_id: i32) -> Self {
+    pub fn new(base64: &'a str, wallet_id: &'a str) -> Self {
         Self {
             uuid: Uuid::new_v4().to_string(),
-            data,
+            base64,
             creation_time: Utc::now().naive_local(),
-            cosigner_id,
-            wallet_id,
+            wallet_uuid: wallet_id,
         }
     }
 
@@ -55,7 +45,7 @@ impl<'a> NewPsbt<'a> {
     pub fn fetch(
         connection: &mut SqliteConnection,
         uuid: Option<&str>,
-        wallet_id: Option<i32>,
+        wallet_uuid: Option<&str>,
     ) -> Result<Vec<Psbt>, Box<dyn Error>> {
         let mut query = psbt.into_boxed();
 
@@ -63,8 +53,8 @@ impl<'a> NewPsbt<'a> {
             query = query.filter(schema::psbt::uuid.eq(uuid));
         }
 
-        if let Some(wallet_id) = wallet_id {
-            query = query.filter(schema::psbt::wallet_id.eq(wallet_id));
+        if let Some(wallet_uuid) = wallet_uuid {
+            query = query.filter(schema::psbt::wallet_uuid.eq(wallet_uuid));
         }
 
         Ok(query.load::<Psbt>(connection)?)

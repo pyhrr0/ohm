@@ -29,7 +29,8 @@ impl grpc_server::OhmApi for Servicer {
         let cosigner = db::Cosigner::new(
             db::CosignerType::External,
             &inner.email_address,
-            &inner.public_key,
+            None,
+            &inner.xpub,
         );
 
         let record = cosigner
@@ -40,8 +41,8 @@ impl grpc_server::OhmApi for Servicer {
             cosigner: Some(proto::Cosigner {
                 cosigner_id: record.uuid,
                 email_address: record.email_address,
-                public_key: record.public_key,
-                wallet_id: record.wallet_uuid,
+                xpub: record.xpub,
+                wallet_id: None,
             }),
         }))
     }
@@ -57,7 +58,6 @@ impl grpc_server::OhmApi for Servicer {
             Some(&request.into_inner().cosigner_id),
             None,
             None,
-            Some(db::CosignerType::External),
         )
         .map_err(|err| Status::internal(&err.to_string()))?;
 
@@ -68,7 +68,7 @@ impl grpc_server::OhmApi for Servicer {
             cosigner = Some(proto::Cosigner {
                 cosigner_id: record.uuid,
                 email_address: record.email_address,
-                public_key: record.public_key,
+                xpub: record.xpub,
                 wallet_id: record.wallet_uuid,
             });
         }
@@ -87,8 +87,7 @@ impl grpc_server::OhmApi for Servicer {
             &mut connection,
             None,
             inner.email_address.as_deref(),
-            inner.public_key.as_deref(),
-            Some(db::CosignerType::External),
+            inner.xpub.as_deref(),
         )
         .map_err(|err| Status::internal(&err.to_string()))?;
 
@@ -97,7 +96,7 @@ impl grpc_server::OhmApi for Servicer {
             cosigners.push(proto::Cosigner {
                 cosigner_id: record.uuid,
                 email_address: record.email_address,
-                public_key: record.public_key,
+                xpub: record.xpub,
                 wallet_id: record.wallet_uuid,
             });
         }
@@ -133,7 +132,6 @@ impl grpc_server::OhmApi for Servicer {
 
         let mut records = db::Wallet::fetch(
             &mut connection,
-            None,
             Some(&request.into_inner().wallet_id),
             None,
             None,
@@ -183,7 +181,7 @@ impl grpc_server::OhmApi for Servicer {
             );
         }
 
-        let records = db::Wallet::fetch(&mut connection, None, None, address_type, network)
+        let records = db::Wallet::fetch(&mut connection, None, address_type, network)
             .map_err(|err| Status::internal(&err.to_string()))?;
 
         let mut wallets = vec![];

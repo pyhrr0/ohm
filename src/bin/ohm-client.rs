@@ -1,4 +1,4 @@
-use bdk::bitcoin::{Address, Network, PublicKey};
+use bdk::bitcoin::{util::bip32::ExtendedPubKey, Address, Network};
 use email_address::EmailAddress;
 use std::error::Error;
 use std::fmt::Debug;
@@ -13,14 +13,14 @@ use ohm::{proto, Client, Response};
 enum CosignerOptions {
     Register {
         email_address: EmailAddress,
-        public_key: PublicKey,
+        xpub: ExtendedPubKey,
     },
     Info {
         cosigner_id: Uuid,
     },
     Find {
         email_address: Option<EmailAddress>,
-        public_key: Option<PublicKey>,
+        xpub: Option<ExtendedPubKey>,
     },
     Forget {
         cosigner_id: Uuid,
@@ -53,7 +53,7 @@ enum PsbtOptions {
     Create {
         wallet_id: Uuid,
         amount: String,
-        address: Address,
+        recipient: Address,
     },
     Register {
         wallet_id: Uuid,
@@ -109,11 +109,11 @@ async fn handle_cosigner_requests(
     match options {
         CosignerOptions::Register {
             email_address,
-            public_key,
+            xpub,
         } => {
             let request = Request::new(proto::RegisterCosignerRequest {
                 email_address: email_address.to_string(),
-                public_key: public_key.to_string(),
+                xpub: xpub.to_string(),
             });
             Ok(Response::RegisterCosigner(
                 client.register_cosigner(request).await?,
@@ -129,11 +129,11 @@ async fn handle_cosigner_requests(
 
         CosignerOptions::Find {
             email_address,
-            public_key,
+            xpub,
         } => {
             let request = Request::new(proto::FindCosignerRequest {
                 email_address: email_address.clone().map(|addr| addr.to_string()),
-                public_key: public_key.map(|pk| pk.to_string()),
+                xpub: xpub.map(|pk| pk.to_string()),
             });
             Ok(Response::FindCosigner(client.find_cosigner(request).await?))
         }
@@ -206,12 +206,12 @@ async fn handle_psbt_requests(
         PsbtOptions::Create {
             wallet_id,
             amount,
-            address,
+            recipient,
         } => {
             let request = Request::new(proto::CreatePsbtRequest {
                 wallet_id: wallet_id.to_string(),
                 amount: amount.clone(),
-                address: address.to_string(),
+                recipient: recipient.to_string(),
             });
             Ok(Response::CreatePsbt(client.create_psbt(request).await?))
         }

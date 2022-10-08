@@ -17,8 +17,6 @@ use super::schema;
 use schema::cosigner::dsl::cosigner;
 use schema::psbt::dsl::psbt;
 use schema::wallet::dsl::wallet;
-use schema::xprv::dsl::xprv;
-use schema::xpub::dsl::xpub;
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Copy, Clone, FromSqlRow, IntEnum)]
@@ -176,16 +174,11 @@ impl<'a> NewWallet<'a> {
 
     pub fn fetch(
         connection: &mut SqliteConnection,
-        id: Option<i32>,
         uuid: Option<&str>,
         address_type: Option<AddressType>,
         network: Option<Network>,
     ) -> Result<Vec<Wallet>, Box<dyn Error>> {
         let mut query = wallet.into_boxed();
-
-        if let Some(id) = id {
-            query = query.filter(schema::wallet::id.eq(id));
-        }
 
         if let Some(uuid) = uuid {
             query = query.filter(schema::wallet::uuid.eq(uuid));
@@ -203,16 +196,9 @@ impl<'a> NewWallet<'a> {
     }
 
     pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
-        let wallet_id = wallet
-            .select(schema::wallet::id)
-            .filter(schema::wallet::uuid.eq(uuid))
-            .first::<i32>(connection)?;
-
         diesel::delete(cosigner.filter(schema::cosigner::wallet_uuid.eq(uuid)))
             .execute(connection)?;
-        diesel::delete(xpub.filter(schema::xpub::wallet_id.eq(wallet_id))).execute(connection)?;
-        diesel::delete(xprv.filter(schema::xprv::wallet_id.eq(wallet_id))).execute(connection)?;
-        diesel::delete(psbt.filter(schema::psbt::wallet_id.eq(wallet_id))).execute(connection)?;
+        diesel::delete(psbt.filter(schema::psbt::wallet_uuid.eq(uuid))).execute(connection)?;
 
         Ok(diesel::delete(wallet.filter(schema::wallet::uuid.eq(uuid))).execute(connection)?)
     }

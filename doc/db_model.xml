@@ -35,7 +35,7 @@
       <type label="Bit" length="0" sql="bit" quote=""/>
     </group>
   </datatypes>
-  <table x="222" y="382" name="wallet">
+  <table x="751" y="351" name="wallet">
     <row name="id" null="0" autoincrement="1">
       <datatype>INTEGER</datatype>
       <default>NULL</default>
@@ -56,6 +56,10 @@
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
     </row>
+    <row name="receive_descriptor_watch_only" null="0" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
+      <default>'NULL'</default>
+    </row>
     <row name="receive_address_index" null="0" autoincrement="0">
       <datatype>BIGINT</datatype>
       <default>NULL</default>
@@ -65,6 +69,10 @@
       <default>'NULL'</default>
     </row>
     <row name="change_descriptor" null="0" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
+      <default>'NULL'</default>
+    </row>
+    <row name="change_descriptor_watch_only" null="0" autoincrement="0">
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
     </row>
@@ -80,6 +88,10 @@
       <datatype>SMALLINT</datatype>
       <default>NULL</default>
     </row>
+    <row name="balance" null="0" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
+      <default>'NULL'</default>
+    </row>
     <row name="creation_time" null="0" autoincrement="0">
       <datatype>DATETIME</datatype>
       <default>'NULL'</default>
@@ -90,8 +102,11 @@
     <key type="INDEX" name="wallet_uuid_idx">
       <part>uuid</part>
     </key>
+    <key type="INDEX" name="wallet_receive_descriptor_watch_only_idx">
+      <part>receive_descriptor_watch_only</part>
+    </key>
   </table>
-  <table x="428" y="201" name="cosigner">
+  <table x="488" y="351" name="cosigner">
     <row name="id" null="0" autoincrement="1">
       <datatype>INTEGER</datatype>
       <default>NULL</default>
@@ -99,10 +114,6 @@
     <row name="uuid" null="0" autoincrement="0">
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
-    </row>
-    <row name="wallet_uuid" null="1" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>NULL</default>
     </row>
     <row name="type" null="0" autoincrement="0">
       <datatype>SMALLINT</datatype>
@@ -112,13 +123,21 @@
       <datatype>VARCHAR(50)</datatype>
       <default>'NULL'</default>
     </row>
-    <row name="public_key" null="0" autoincrement="0">
-      <datatype>VARCHAR(120)</datatype>
-      <default>'NULL'</default>
+    <row name="xpub" null="1" autoincrement="0">
+      <datatype>MEDIUMTEXT(120)</datatype>
+      <default>NULL</default>
+    </row>
+    <row name="xprv" null="1" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
+      <default>NULL</default>
     </row>
     <row name="creation_time" null="0" autoincrement="0">
       <datatype>DATETIME</datatype>
       <default>'NULL'</default>
+    </row>
+    <row name="wallet_uuid" null="1" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
+      <default>NULL</default>
     </row>
     <key type="PRIMARY" name="">
       <part>id</part>
@@ -126,8 +145,17 @@
     <key type="INDEX" name="cosigner_uuid_idx">
       <part>uuid</part>
     </key>
+    <key type="INDEX" name="email_address_idx">
+      <part>email_address</part>
+    </key>
+    <key type="INDEX" name="xpub_idx">
+      <part>xpub</part>
+    </key>
+    <key type="INDEX" name="wallet_uuid_idx">
+      <part>wallet_uuid</part>
+    </key>
   </table>
-  <table x="429" y="702" name="psbt">
+  <table x="1052" y="352" name="psbt">
     <row name="id" null="0" autoincrement="1">
       <datatype>INTEGER</datatype>
       <default>NULL</default>
@@ -136,22 +164,16 @@
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
     </row>
-    <row name="data" null="0" autoincrement="0">
+    <row name="base64" null="0" autoincrement="0">
       <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
     </row>
-    <row name="cosigner_id" null="0" autoincrement="0">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-      <relation table="cosigner" row="id"/>
-    </row>
-    <row name="wallet_id" null="0" autoincrement="0">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-      <relation table="wallet" row="id"/>
-    </row>
     <row name="creation_time" null="0" autoincrement="0">
       <datatype>DATETIME</datatype>
+      <default>'NULL'</default>
+    </row>
+    <row name="wallet_uuid" null="0" autoincrement="0">
+      <datatype>MEDIUMTEXT</datatype>
       <default>'NULL'</default>
     </row>
     <key type="PRIMARY" name="">
@@ -160,107 +182,8 @@
     <key type="INDEX" name="psbt_uuid_idx">
       <part>uuid</part>
     </key>
-    <key type="INDEX" name="psbt_cosigner_idx">
-      <part>cosigner_id</part>
-    </key>
-    <key type="INDEX" name="psbt_wallet_idx">
-      <part>wallet_id</part>
-    </key>
-  </table>
-  <table x="603" y="252" name="xpub">
-    <row name="id" null="0" autoincrement="1">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-    </row>
-    <row name="uuid" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="derivation_path" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="fingerprint" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="data" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="cosigner_id" null="0" autoincrement="0">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-      <relation table="cosigner" row="id"/>
-    </row>
-    <row name="wallet_id" null="0" autoincrement="0">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-      <relation table="wallet" row="id"/>
-    </row>
-    <row name="creation_time" null="0" autoincrement="0">
-      <datatype>DATETIME</datatype>
-      <default>'NULL'</default>
-    </row>
-    <key type="PRIMARY" name="">
-      <part>id</part>
-    </key>
-    <key type="INDEX" name="xpub_uuid_idx">
-      <part>uuid</part>
-    </key>
-    <key type="INDEX" name="xpub_cosigner_idx">
-      <part>cosigner_id</part>
-    </key>
-    <key type="INDEX" name="xpub_wallet_idx">
-      <part>wallet_id</part>
-    </key>
-  </table>
-  <table x="601" y="516" name="xprv">
-    <row name="id" null="0" autoincrement="1">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-    </row>
-    <row name="uuid" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="fingerprint" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="mnemonic" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="data" null="0" autoincrement="0">
-      <datatype>MEDIUMTEXT</datatype>
-      <default>'NULL'</default>
-    </row>
-    <row name="cosigner_id" null="0" autoincrement="0">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-      <relation table="cosigner" row="id"/>
-    </row>
-    <row name="wallet_id" null="0" autoincrement="0">
-      <datatype>INTEGER</datatype>
-      <default>NULL</default>
-      <relation table="wallet" row="id"/>
-    </row>
-    <row name="creation_time" null="0" autoincrement="0">
-      <datatype>DATETIME</datatype>
-      <default>'NULL'</default>
-    </row>
-    <key type="PRIMARY" name="">
-      <part>id</part>
-    </key>
-    <key type="INDEX" name="xprv_uuid_idx">
-      <part>uuid</part>
-    </key>
-    <key type="INDEX" name="xprv_cosigner_idx">
-      <part>cosigner_id</part>
-    </key>
-    <key type="INDEX" name="xprv_wallet_idx">
-      <part>wallet_id</part>
+    <key type="INDEX" name="wallet_uuid_idx">
+      <part>wallet_uuid</part>
     </key>
   </table>
 </sql>

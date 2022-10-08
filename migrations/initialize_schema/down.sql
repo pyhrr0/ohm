@@ -1,5 +1,3 @@
-DROP TABLE 'wallet';
 DROP TABLE 'cosigner';
+DROP TABLE 'wallet';
 DROP TABLE 'psbt';
-DROP TABLE 'xpub';
-DROP TABLE 'xprv';

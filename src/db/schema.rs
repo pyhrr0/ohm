@@ -4,22 +4,13 @@ diesel::table! {
     cosigner (id) {
         id -> Integer,
         uuid -> Text,
-        wallet_uuid -> Nullable<Text>,
+        #[sql_name = "type"]
         type_ -> SmallInt,
         email_address -> Text,
-        public_key -> Text,
+        xpub -> Text,
+        xprv -> Nullable<Text>,
         creation_time -> Timestamp,
-    }
-}
-
-diesel::table! {
-    psbt (id) {
-        id -> Integer,
-        uuid -> Text,
-        data -> Text,
-        creation_time -> Timestamp,
-        cosigner_id -> Integer,
-        wallet_id -> Integer,
+        wallet_uuid -> Nullable<Text>,
     }
 }
 
@@ -42,36 +33,11 @@ diesel::table! {
 }
 
 diesel::table! {
-    xprv (id) {
+    psbt (id) {
         id -> Integer,
         uuid -> Text,
-        fingerprint -> Text,
-        mnemonic -> Text,
-        data -> Text,
+        base64 -> Text,
         creation_time -> Timestamp,
-        cosigner_id -> Integer,
-        wallet_id -> Integer,
+        wallet_uuid -> Text,
     }
 }
-
-diesel::table! {
-    xpub (id) {
-        id -> Integer,
-        uuid -> Text,
-        derivation_path -> Text,
-        fingerprint -> Text,
-        data -> Text,
-        creation_time -> Timestamp,
-        cosigner_id -> Integer,
-        wallet_id -> Integer,
-    }
-}
-
-diesel::joinable!(psbt -> cosigner (cosigner_id));
-diesel::joinable!(psbt -> wallet (wallet_id));
-diesel::joinable!(xprv -> cosigner (cosigner_id));
-diesel::joinable!(xprv -> wallet (wallet_id));
-diesel::joinable!(xpub -> cosigner (cosigner_id));
-diesel::joinable!(xpub -> wallet (wallet_id));
-
-diesel::allow_tables_to_appear_in_same_query!(cosigner, psbt, wallet, xprv, xpub,);

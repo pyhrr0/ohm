@@ -42,33 +42,41 @@ impl ToSql<SmallInt, Sqlite> for CosignerType {
 pub struct Cosigner {
     pub id: i32,
     pub uuid: String,
-    pub wallet_uuid: Option<String>,
     pub type_: CosignerType,
     pub email_address: String,
-    pub public_key: String,
+    pub xpub: String,
+    pub xprv: Option<String>,
     pub creation_time: NaiveDateTime,
+    pub wallet_uuid: Option<String>,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = schema::cosigner)]
 pub struct NewCosigner<'a> {
     pub uuid: String,
-    pub wallet_uuid: Option<&'a str>,
     pub type_: CosignerType,
     pub email_address: &'a str,
-    pub public_key: &'a str,
+    pub xpub: &'a str,
+    pub xprv: Option<&'a str>,
     pub creation_time: NaiveDateTime,
+    pub wallet_uuid: Option<&'a str>,
 }
 
 impl<'a> NewCosigner<'a> {
-    pub fn new(type_: CosignerType, email_address: &'a str, public_key: &'a str) -> Self {
+    pub fn new(
+        type_: CosignerType,
+        email_address: &'a str,
+        xprv: Option<&'a str>,
+        xpub: &'a str,
+    ) -> Self {
         Self {
             uuid: Uuid::new_v4().to_string(),
-            wallet_uuid: None,
             type_,
             email_address,
-            public_key,
+            xpub,
+            xprv,
             creation_time: Utc::now().naive_local(),
+            wallet_uuid: None,
         }
     }
 
@@ -82,8 +90,7 @@ impl<'a> NewCosigner<'a> {
         connection: &mut SqliteConnection,
         uuid: Option<&str>,
         email_address: Option<&str>,
-        public_key: Option<&str>,
-        type_: Option<CosignerType>,
+        xpub: Option<&str>,
     ) -> Result<Vec<Cosigner>, Box<dyn Error>> {
         let mut query = cosigner.into_boxed();
 
@@ -95,12 +102,8 @@ impl<'a> NewCosigner<'a> {
             query = query.filter(schema::cosigner::email_address.eq(email_address));
         }
 
-        if let Some(public_key) = public_key {
-            query = query.filter(schema::cosigner::public_key.eq(public_key));
-        }
-
-        if let Some(type_) = type_ {
-            query = query.filter(schema::cosigner::type_.eq(type_));
+        if let Some(xpub) = xpub {
+            query = query.filter(schema::cosigner::xpub.eq(xpub));
         }
 
         Ok(query.load::<Cosigner>(connection)?)

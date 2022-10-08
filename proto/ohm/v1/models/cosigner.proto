@@ -5,13 +5,13 @@ package ohm.v1;
 message Cosigner {
   string cosigner_id = 1;
   string email_address = 2;
-  string public_key = 3;
+  string xpub = 3;
   optional string wallet_id = 4;
 }
 
 message RegisterCosignerRequest {
   string email_address = 1;
-  string public_key = 2;
+  string xpub = 2;
 }
 
 message RegisterCosignerResponse {
@@ -28,7 +28,7 @@ message GetCosignerResponse {
 
 message FindCosignerRequest {
   optional string email_address = 1;
-  optional string public_key = 2;
+  optional string xpub = 2;
 }
 
 message FindCosignerResponse {
