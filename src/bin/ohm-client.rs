@@ -132,8 +132,8 @@ async fn handle_cosigner_requests(
             xpub,
         } => {
             let request = Request::new(proto::FindCosignerRequest {
-                email_address: email_address.clone().map(|addr| addr.to_string()),
-                xpub: xpub.map(|pk| pk.to_string()),
+                email_address: email_address.clone().map(|address| address.to_string()),
+                xpub: xpub.map(|xpub| xpub.to_string()),
             });
             Ok(Response::FindCosigner(client.find_cosigner(request).await?))
         }
@@ -184,7 +184,7 @@ async fn handle_wallet_requests(
                 address_type: address_type
                     .clone()
                     .map(|addr_type| proto::AddressType::from(addr_type.as_str()).into()),
-                network: network.map(|net| proto::Network::from(net).into()),
+                network: network.map(|network| proto::Network::from(network).into()),
             });
             Ok(Response::FindWallet(client.find_wallet(request).await?))
         }

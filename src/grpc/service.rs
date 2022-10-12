@@ -1,11 +1,16 @@
+use std::str::FromStr;
 use std::sync::Mutex;
 
+use bdk::bitcoin::util::bip32;
 use diesel::prelude::SqliteConnection;
+use email_address::EmailAddress;
 use int_enum::IntEnum;
 use tonic::transport::{server::Router, Channel, Server};
 use tonic::{Request, Response, Status};
+use uuid::Uuid;
 
 use crate::db;
+use crate::wallet;
 use crate::Config;
 
 use super::proto;
@@ -26,24 +31,26 @@ impl grpc_server::OhmApi for Servicer {
         let mut connection = self.db_connection.lock().unwrap();
         let inner = request.into_inner();
 
-        let cosigner = db::Cosigner::new(
-            db::CosignerType::External,
-            &inner.email_address,
+        let email_address = EmailAddress::from_str(&inner.email_address)
+            .map_err(|_| Status::invalid_argument("invalid email address"))?;
+
+        let xpub = bip32::ExtendedPubKey::from_str(&inner.xpub)
+            .map_err(|_| Status::invalid_argument("invalid xpub"))?;
+
+        let cosigner = wallet::Cosigner::new(
+            wallet::CosignerType::External,
+            email_address,
+            Some(xpub),
             None,
-            &inner.xpub,
-        );
+        )
+        .map_err(|err| Status::internal(&err.to_string()))?;
 
         let record = cosigner
             .store(&mut connection)
             .map_err(|err| Status::internal(&err.to_string()))?;
 
         Ok(Response::new(proto::RegisterCosignerResponse {
-            cosigner: Some(proto::Cosigner {
-                cosigner_id: record.uuid,
-                email_address: record.email_address,
-                xpub: record.xpub,
-                wallet_id: None,
-            }),
+            cosigner: Some(record.into()),
         }))
     }
 
@@ -52,25 +59,18 @@ impl grpc_server::OhmApi for Servicer {
         request: Request<proto::GetCosignerRequest>,
     ) -> Result<Response<proto::GetCosignerResponse>, Status> {
         let mut connection = self.db_connection.lock().unwrap();
+        let cosigner_id = request.into_inner().cosigner_id;
 
-        let mut records = db::Cosigner::fetch(
-            &mut connection,
-            Some(&request.into_inner().cosigner_id),
-            None,
-            None,
-        )
-        .map_err(|err| Status::internal(&err.to_string()))?;
+        let uuid =
+            Uuid::from_str(&cosigner_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let mut records = wallet::Cosigner::fetch(&mut connection, Some(uuid), None, None)
+            .map_err(|err| Status::internal(&err.to_string()))?;
 
         let mut cosigner = None;
         if !records.is_empty() {
             let record = records.remove(0);
-
-            cosigner = Some(proto::Cosigner {
-                cosigner_id: record.uuid,
-                email_address: record.email_address,
-                xpub: record.xpub,
-                wallet_id: record.wallet_uuid,
-            });
+            cosigner = Some(record.into())
         }
 
         Ok(Response::new(proto::GetCosignerResponse { cosigner }))
@@ -83,22 +83,24 @@ impl grpc_server::OhmApi for Servicer {
         let mut connection = self.db_connection.lock().unwrap();
         let inner = request.into_inner();
 
-        let records = db::Cosigner::fetch(
-            &mut connection,
-            None,
-            inner.email_address.as_deref(),
-            inner.xpub.as_deref(),
-        )
-        .map_err(|err| Status::internal(&err.to_string()))?;
+        let email_address = inner
+            .email_address
+            .map(|address| EmailAddress::from_str(&address))
+            .transpose()
+            .map_err(|_| Status::invalid_argument("invalid email address"))?;
+
+        let xpub = inner
+            .xpub
+            .map(|xpub| bip32::ExtendedPubKey::from_str(&xpub))
+            .transpose()
+            .map_err(|_| Status::invalid_argument("invalid xpub"))?;
+
+        let records = wallet::Cosigner::fetch(&mut connection, None, email_address, xpub)
+            .map_err(|err| Status::internal(&err.to_string()))?;
 
         let mut cosigners = vec![];
         for record in records {
-            cosigners.push(proto::Cosigner {
-                cosigner_id: record.uuid,
-                email_address: record.email_address,
-                xpub: record.xpub,
-                wallet_id: record.wallet_uuid,
-            });
+            cosigners.push(record.into())
         }
 
         Ok(Response::new(proto::FindCosignerResponse { cosigners }))
@@ -111,8 +113,11 @@ impl grpc_server::OhmApi for Servicer {
         let mut connection = self.db_connection.lock().unwrap();
         let cosigner_id = request.into_inner().cosigner_id;
 
-        db::Cosigner::remove(&mut connection, &cosigner_id)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        let uuid =
+            Uuid::from_str(&cosigner_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        wallet::Cosigner::remove(&mut connection, uuid)
+            .map_err(|err| Status::not_found(&err.to_string()))?;
 
         Ok(Response::new(proto::ForgetCosignerResponse { cosigner_id }))
     }
@@ -169,17 +174,15 @@ impl grpc_server::OhmApi for Servicer {
         if let Some(type_) = inner.address_type {
             address_type = Some(
                 db::AddressType::from_int(type_ as i16)
-                    .map_err(|_| Status::internal("Invalid address type"))?,
+                    .map_err(|_| Status::internal("invalid address type"))?,
             );
         }
 
-        let mut network = None;
-        if let Some(net) = inner.network {
-            network = Some(
-                db::Network::from_int(net as i16)
-                    .map_err(|_| Status::internal("Invalid network"))?,
-            );
-        }
+        let network = inner
+            .network
+            .map(|network| db::Network::from_int(network as i16))
+            .transpose()
+            .map_err(|_| Status::internal("invalid network"))?;
 
         let records = db::Wallet::fetch(&mut connection, None, address_type, network)
             .map_err(|err| Status::internal(&err.to_string()))?;

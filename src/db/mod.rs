@@ -6,7 +6,7 @@ mod cosigner;
 mod psbt;
 mod wallet;
 
-pub use cosigner::{CosignerType, NewCosigner as Cosigner};
+pub use cosigner::{Cosigner, CosignerRecord, CosignerType};
 pub use psbt::NewPsbt as Psbt;
 pub use wallet::{AddressType, Network, NewWallet as Wallet};
 

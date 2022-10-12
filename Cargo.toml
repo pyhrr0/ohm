@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bdk = "0.23.0"
+bdk = {version = "0.23.0", features = ["keys-bip39"]}
+# https://github.com/rust-bitcoin/rust-bip39/issues/29
+bip39 = {version = "1.0.1", default-features = false}
 chrono = "0.4"
 diesel = {version = "2.0.0", features = ["chrono", "sqlite", "returning_clauses_for_sqlite_3_35"]}
 email_address = "0.2.3"

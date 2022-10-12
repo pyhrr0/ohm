@@ -25,7 +25,6 @@ pub enum AddressType {
     P2sh = 1,
     P2wsh = 2,
     P2shwsh = 3,
-    P2tr = 4,
 }
 
 impl ToSql<SmallInt, Sqlite> for AddressType {
@@ -41,7 +40,6 @@ impl FromSql<SmallInt, Sqlite> for AddressType {
             1 => Ok(AddressType::P2sh),
             2 => Ok(AddressType::P2wsh),
             3 => Ok(AddressType::P2shwsh),
-            4 => Ok(AddressType::P2tr),
             x => Err(format!("Unrecognized address type {}", x).into()),
         }
     }
