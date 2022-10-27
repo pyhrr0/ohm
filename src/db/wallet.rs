@@ -16,7 +16,7 @@ use uuid::Uuid;
 use super::schema;
 use schema::cosigner::dsl::cosigner;
 use schema::psbt::dsl::psbt;
-use schema::wallet::dsl::wallet;
+use schema::wallet::dsl;
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Copy, Clone, FromSqlRow, IntEnum)]
@@ -51,8 +51,7 @@ impl FromSql<SmallInt, Sqlite> for AddressType {
 pub enum Network {
     Regtest = 1,
     Testnet = 2,
-    Signet = 3,
-    Mainnet = 4,
+    Mainnet = 3,
 }
 
 impl ToSql<SmallInt, Sqlite> for Network {
@@ -67,20 +66,18 @@ impl FromSql<SmallInt, Sqlite> for Network {
         match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
             1 => Ok(Network::Regtest),
             2 => Ok(Network::Testnet),
-            3 => Ok(Network::Signet),
-            4 => Ok(Network::Mainnet),
+            3 => Ok(Network::Mainnet),
             x => Err(format!("Unrecognized address type {}", x).into()),
         }
     }
 }
 
-impl From<bitcoin::Network> for Network {
-    fn from(network: bitcoin::Network) -> Self {
+impl From<Network> for bitcoin::Network {
+    fn from(network: Network) -> Self {
         match network {
-            bitcoin::Network::Regtest => Self::Regtest,
-            bitcoin::Network::Testnet => Self::Testnet,
-            bitcoin::Network::Bitcoin => Self::Mainnet,
-            bitcoin::Network::Signet => Self::Mainnet,
+            Network::Regtest => Self::Regtest,
+            Network::Testnet => Self::Testnet,
+            Network::Mainnet => Self::Bitcoin,
         }
     }
 }
@@ -111,7 +108,7 @@ impl FromSql<Text, Sqlite> for DecimalWrapper {
 
 #[derive(Debug, Queryable, Identifiable)]
 #[diesel(table_name = schema::wallet)]
-pub struct Wallet {
+pub struct WalletRecord {
     pub id: i32,
     pub uuid: String,
     pub address_type: AddressType,
@@ -129,7 +126,7 @@ pub struct Wallet {
 
 #[derive(Insertable)]
 #[diesel(table_name = schema::wallet)]
-pub struct NewWallet<'a> {
+pub struct Wallet<'a> {
     pub uuid: String,
     pub address_type: AddressType,
     pub network: Network,
@@ -142,7 +139,7 @@ pub struct NewWallet<'a> {
     pub creation_time: NaiveDateTime,
 }
 
-impl<'a> NewWallet<'a> {
+impl<'a> Wallet<'a> {
     pub fn new(
         address_type: AddressType,
         network: Network,
@@ -164,7 +161,7 @@ impl<'a> NewWallet<'a> {
         }
     }
 
-    pub fn store(&self, connection: &mut SqliteConnection) -> Result<Wallet, Box<dyn Error>> {
+    pub fn store(&self, connection: &mut SqliteConnection) -> Result<WalletRecord, Box<dyn Error>> {
         Ok(diesel::insert_into(schema::wallet::table)
             .values(self)
             .get_result(connection)?)
@@ -175,8 +172,8 @@ impl<'a> NewWallet<'a> {
         uuid: Option<&str>,
         address_type: Option<AddressType>,
         network: Option<Network>,
-    ) -> Result<Vec<Wallet>, Box<dyn Error>> {
-        let mut query = wallet.into_boxed();
+    ) -> Result<Vec<WalletRecord>, Box<dyn Error>> {
+        let mut query = dsl::wallet.into_boxed();
 
         if let Some(uuid) = uuid {
             query = query.filter(schema::wallet::uuid.eq(uuid));
@@ -190,14 +187,18 @@ impl<'a> NewWallet<'a> {
             query = query.filter(schema::wallet::network.eq(network));
         }
 
-        Ok(query.load::<Wallet>(connection)?)
+        Ok(query.load::<WalletRecord>(connection)?)
     }
 
-    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
-        diesel::delete(cosigner.filter(schema::cosigner::wallet_uuid.eq(uuid)))
+    pub fn remove(connection: &mut SqliteConnection, uuid: Uuid) -> Result<usize, Box<dyn Error>> {
+        diesel::delete(cosigner.filter(schema::cosigner::wallet_uuid.eq(uuid.to_string())))
             .execute(connection)?;
-        diesel::delete(psbt.filter(schema::psbt::wallet_uuid.eq(uuid))).execute(connection)?;
+        diesel::delete(psbt.filter(schema::psbt::wallet_uuid.eq(uuid.to_string())))
+            .execute(connection)?;
 
-        Ok(diesel::delete(wallet.filter(schema::wallet::uuid.eq(uuid))).execute(connection)?)
+        Ok(
+            diesel::delete(dsl::wallet.filter(schema::wallet::uuid.eq(uuid.to_string())))
+                .execute(connection)?,
+        )
     }
 }

@@ -5,7 +5,7 @@ use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
 use super::schema;
-use schema::psbt::dsl::psbt;
+use schema::psbt::dsl;
 
 #[derive(Identifiable, Queryable)]
 #[diesel(table_name = schema::psbt)]
@@ -47,7 +47,7 @@ impl<'a> NewPsbt<'a> {
         uuid: Option<&str>,
         wallet_uuid: Option<&str>,
     ) -> Result<Vec<Psbt>, Box<dyn Error>> {
-        let mut query = psbt.into_boxed();
+        let mut query = dsl::psbt.into_boxed();
 
         if let Some(uuid) = uuid {
             query = query.filter(schema::psbt::uuid.eq(uuid));
@@ -61,6 +61,6 @@ impl<'a> NewPsbt<'a> {
     }
 
     pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
-        Ok(diesel::delete(psbt.filter(schema::psbt::uuid.eq(uuid))).execute(connection)?)
+        Ok(diesel::delete(dsl::psbt.filter(schema::psbt::uuid.eq(uuid))).execute(connection)?)
     }
 }

@@ -1,25 +1,29 @@
 use std::error::Error;
 
+use bdk::bitcoin::secp256k1;
 use bdk::bitcoin::util::bip32;
-use bdk::bitcoin::{secp256k1, Network};
 use bdk::keys::{bip39, DerivableKey, ExtendedKey};
 use diesel::prelude::SqliteConnection;
 use email_address::EmailAddress;
 use uuid::Uuid;
 
 use crate::db;
+pub use db::CosignerType;
 
-pub struct Cosigner(db::Cosigner);
+use super::Network;
 
-pub enum CosignerType {
-    Internal = 1,
-    External = 2,
+pub struct Cosigner {
+    pub type_: CosignerType,
+    pub email_address: Option<EmailAddress>,
+    pub xprv: Option<bip32::ExtendedPrivKey>,
+    pub xpub: bip32::ExtendedPubKey,
+    pub wallet: Option<Uuid>,
 }
 
 impl Cosigner {
     pub fn new(
         type_: CosignerType,
-        email_address: EmailAddress,
+        email_address: Option<EmailAddress>,
         xpub: Option<bip32::ExtendedPubKey>,
         network: Option<Network>,
     ) -> Result<Cosigner, Box<dyn Error>> {
@@ -44,12 +48,13 @@ impl Cosigner {
             }
         }?;
 
-        Ok(Self(db::Cosigner::new(
-            type_.into(),
+        Ok(Self {
+            type_,
             email_address,
             xprv,
             xpub,
-        )))
+            wallet: None,
+        })
     }
 
     fn generate_key_pair(
@@ -62,11 +67,11 @@ impl Cosigner {
         )?;
 
         let xkey: ExtendedKey = mnemonic.clone().into_extended_key()?;
-        let xprv: bip32::ExtendedPrivKey = xkey.into_xprv(network).unwrap();
+        let xprv: bip32::ExtendedPrivKey = xkey.into_xprv(network.into()).unwrap();
 
         let xkey: ExtendedKey = mnemonic.into_extended_key()?;
         let secp = secp256k1::Secp256k1::new();
-        let xpub = xkey.into_xpub(network, &secp);
+        let xpub = xkey.into_xpub(network.into(), &secp);
 
         Ok((xprv, xpub))
     }
@@ -75,7 +80,14 @@ impl Cosigner {
         &self,
         connection: &mut SqliteConnection,
     ) -> Result<db::CosignerRecord, Box<dyn Error>> {
-        self.0.store(connection)
+        db::Cosigner::new(
+            self.type_,
+            self.email_address.as_ref(),
+            self.xprv.as_ref(),
+            &self.xpub,
+            self.wallet.as_ref(),
+        )
+        .store(connection)
     }
 
     pub fn fetch(

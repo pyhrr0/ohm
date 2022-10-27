@@ -8,7 +8,7 @@ mod wallet;
 
 pub use cosigner::{Cosigner, CosignerRecord, CosignerType};
 pub use psbt::NewPsbt as Psbt;
-pub use wallet::{AddressType, Network, NewWallet as Wallet};
+pub use wallet::{AddressType, Network, Wallet, WalletRecord};
 
 pub fn establish_connection(db_path: &str) -> SqliteConnection {
     SqliteConnection::establish(db_path)

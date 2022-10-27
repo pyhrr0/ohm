@@ -6,7 +6,7 @@ diesel::table! {
         uuid -> Text,
         #[sql_name = "type"]
         type_ -> SmallInt,
-        email_address -> Text,
+        email_address -> Nullable<Text>,
         xpub -> Text,
         xprv -> Nullable<Text>,
         creation_time -> Timestamp,

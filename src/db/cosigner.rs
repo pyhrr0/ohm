@@ -11,10 +11,8 @@ use diesel::{deserialize, serialize, ExpressionMethods, QueryDsl, RunQueryDsl, S
 use email_address::EmailAddress;
 use uuid::Uuid;
 
-use crate::wallet;
-
 use super::schema;
-use schema::cosigner::dsl::cosigner;
+use schema::cosigner::dsl;
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Clone, Copy, FromSqlRow)]
@@ -24,20 +22,11 @@ pub enum CosignerType {
     External = 2,
 }
 
-impl From<wallet::CosignerType> for CosignerType {
-    fn from(type_: wallet::CosignerType) -> CosignerType {
-        match type_ {
-            wallet::CosignerType::Internal => CosignerType::Internal,
-            wallet::CosignerType::External => CosignerType::External,
-        }
-    }
-}
-
 impl FromSql<SmallInt, Sqlite> for CosignerType {
     fn from_sql(value: SqliteValue) -> deserialize::Result<Self> {
         match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(value)? {
-            0 => Ok(CosignerType::Internal),
-            1 => Ok(CosignerType::External),
+            1 => Ok(CosignerType::Internal),
+            2 => Ok(CosignerType::External),
             x => Err(format!("Unrecognized address type {}", x).into()),
         }
     }
@@ -56,7 +45,7 @@ pub struct CosignerRecord {
     pub id: i32,
     pub uuid: String,
     pub type_: CosignerType,
-    pub email_address: String,
+    pub email_address: Option<String>,
     pub xpub: String,
     pub xprv: Option<String>,
     pub creation_time: NaiveDateTime,
@@ -68,7 +57,7 @@ pub struct CosignerRecord {
 pub struct Cosigner {
     pub uuid: String,
     pub type_: CosignerType,
-    pub email_address: String,
+    pub email_address: Option<String>,
     pub xpub: String,
     pub xprv: Option<String>,
     pub creation_time: NaiveDateTime,
@@ -78,18 +67,19 @@ pub struct Cosigner {
 impl Cosigner {
     pub fn new(
         type_: CosignerType,
-        email_address: EmailAddress,
-        xprv: Option<bip32::ExtendedPrivKey>,
-        xpub: bip32::ExtendedPubKey,
+        email_address: Option<&EmailAddress>,
+        xprv: Option<&bip32::ExtendedPrivKey>,
+        xpub: &bip32::ExtendedPubKey,
+        wallet_uuid: Option<&Uuid>,
     ) -> Self {
         Self {
             uuid: Uuid::new_v4().to_string(),
             type_,
-            email_address: email_address.to_string(),
+            email_address: email_address.map(|eml| eml.to_string()),
             xprv: xprv.map(|xprv| xprv.to_string()),
             xpub: xpub.to_string(),
             creation_time: Utc::now().naive_local(),
-            wallet_uuid: None,
+            wallet_uuid: wallet_uuid.map(|uuid| uuid.to_string()),
         }
     }
 
@@ -108,7 +98,7 @@ impl Cosigner {
         email_address: Option<EmailAddress>,
         xpub: Option<bip32::ExtendedPubKey>,
     ) -> Result<Vec<CosignerRecord>, Box<dyn Error>> {
-        let mut query = cosigner.into_boxed();
+        let mut query = dsl::cosigner.into_boxed();
 
         if let Some(uuid) = uuid {
             query = query.filter(schema::cosigner::uuid.eq(uuid.to_string()));
@@ -127,7 +117,7 @@ impl Cosigner {
 
     pub fn remove(connection: &mut SqliteConnection, uuid: Uuid) -> Result<usize, Box<dyn Error>> {
         Ok(
-            diesel::delete(cosigner.filter(schema::cosigner::uuid.eq(uuid.to_string())))
+            diesel::delete(dsl::cosigner.filter(schema::cosigner::uuid.eq(uuid.to_string())))
                 .execute(connection)?,
         )
     }
