@@ -58,11 +58,11 @@ message FindWalletResponse {
   repeated Wallet wallets = 1;
 }
 
-message GetReceiveAddressRequest {
+message GetNewReceiveAddressRequest {
   string wallet_id = 1;
 }
 
-message GetReceiveAddressResponse {
+message GetNewReceiveAddressResponse {
   string address = 1;
 }
 

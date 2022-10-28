@@ -8,7 +8,10 @@ use diesel::deserialize::FromSql;
 use diesel::serialize::{IsNull, Output, ToSql};
 use diesel::sql_types::{SmallInt, Text};
 use diesel::sqlite::{Sqlite, SqliteValue};
-use diesel::{deserialize, serialize, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
+use diesel::{
+    deserialize, serialize, AsChangeset, ExpressionMethods, QueryDsl, RunQueryDsl, SaveChangesDsl,
+    SqliteConnection,
+};
 use int_enum::IntEnum;
 use rust_decimal::Decimal;
 use uuid::Uuid;
@@ -106,7 +109,12 @@ impl FromSql<Text, Sqlite> for DecimalWrapper {
     }
 }
 
-#[derive(Debug, Queryable, Identifiable)]
+pub struct WalletDescriptors {
+    pub receive_descriptor: String,
+    pub change_descriptor: String,
+}
+
+#[derive(Debug, Queryable, Identifiable, AsChangeset)]
 #[diesel(table_name = schema::wallet)]
 pub struct WalletRecord {
     pub id: i32,
@@ -141,20 +149,22 @@ pub struct Wallet<'a> {
 
 impl<'a> Wallet<'a> {
     pub fn new(
+        uuid: &Uuid,
         address_type: AddressType,
         network: Network,
-        receive_descriptor: &'a str,
-        change_descriptor: &'a str,
+        descriptors: &'a WalletDescriptors,
+        receive_address_index: i64,
+        change_address_index: i64,
         required_signatures: i16,
     ) -> Self {
         Self {
-            uuid: Uuid::new_v4().to_string(),
+            uuid: uuid.to_string(),
             address_type,
             network,
-            receive_descriptor,
-            receive_address_index: 0,
-            change_descriptor,
-            change_address_index: 0,
+            receive_descriptor: &descriptors.receive_descriptor,
+            receive_address_index,
+            change_descriptor: &descriptors.change_descriptor,
+            change_address_index,
             required_signatures,
             balance: DecimalWrapper(Decimal::new(0, 0)),
             creation_time: Utc::now().naive_local(),
@@ -169,14 +179,14 @@ impl<'a> Wallet<'a> {
 
     pub fn fetch(
         connection: &mut SqliteConnection,
-        uuid: Option<&str>,
+        uuid: Option<&Uuid>,
         address_type: Option<AddressType>,
         network: Option<Network>,
     ) -> Result<Vec<WalletRecord>, Box<dyn Error>> {
         let mut query = dsl::wallet.into_boxed();
 
         if let Some(uuid) = uuid {
-            query = query.filter(schema::wallet::uuid.eq(uuid));
+            query = query.filter(schema::wallet::uuid.eq(uuid.to_string()));
         }
 
         if let Some(address_type) = address_type {
@@ -188,6 +198,37 @@ impl<'a> Wallet<'a> {
         }
 
         Ok(query.load::<WalletRecord>(connection)?)
+    }
+
+    pub fn update(
+        connection: &mut SqliteConnection,
+        uuid: &Uuid,
+        receive_address: Option<&bitcoin::Address>,
+        receive_address_index: Option<u64>,
+        change_address: Option<&bitcoin::Address>,
+        change_address_index: Option<u64>,
+    ) -> Result<WalletRecord, Box<dyn Error>> {
+        let mut wallet = dsl::wallet
+            .filter(schema::wallet::uuid.eq(uuid.to_string()))
+            .first::<WalletRecord>(connection)?;
+
+        if let Some(addr) = receive_address {
+            wallet.receive_address = addr.to_string();
+        }
+
+        if let Some(index) = receive_address_index {
+            wallet.receive_address_index = index as i64;
+        }
+
+        if let Some(addr) = change_address {
+            wallet.change_address = addr.to_string();
+        }
+
+        if let Some(index) = change_address_index {
+            wallet.change_address_index = index as i64;
+        }
+
+        Ok(wallet.save_changes(connection)?)
     }
 
     pub fn remove(connection: &mut SqliteConnection, uuid: Uuid) -> Result<usize, Box<dyn Error>> {

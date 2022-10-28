@@ -94,9 +94,10 @@ impl Cosigner {
 
     pub fn fetch(
         connection: &mut SqliteConnection,
-        uuid: Option<Uuid>,
-        email_address: Option<EmailAddress>,
-        xpub: Option<bip32::ExtendedPubKey>,
+        uuid: Option<&Uuid>,
+        email_address: Option<&EmailAddress>,
+        xpub: Option<&bip32::ExtendedPubKey>,
+        wallet_uuid: Option<&Uuid>,
     ) -> Result<Vec<CosignerRecord>, Box<dyn Error>> {
         let mut query = dsl::cosigner.into_boxed();
 
@@ -112,10 +113,14 @@ impl Cosigner {
             query = query.filter(schema::cosigner::xpub.eq(xpub.to_string()));
         }
 
+        if let Some(uuid) = wallet_uuid {
+            query = query.filter(schema::cosigner::wallet_uuid.eq(uuid.to_string()));
+        }
+
         Ok(query.load::<CosignerRecord>(connection)?)
     }
 
-    pub fn remove(connection: &mut SqliteConnection, uuid: Uuid) -> Result<usize, Box<dyn Error>> {
+    pub fn remove(connection: &mut SqliteConnection, uuid: &Uuid) -> Result<usize, Box<dyn Error>> {
         Ok(
             diesel::delete(dsl::cosigner.filter(schema::cosigner::uuid.eq(uuid.to_string())))
                 .execute(connection)?,

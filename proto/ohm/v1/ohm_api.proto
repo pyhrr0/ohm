@@ -15,7 +15,7 @@ service OhmAPI {
   rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
   rpc GetWallet(GetWalletRequest) returns (GetWalletResponse);
   rpc FindWallet(FindWalletRequest) returns (FindWalletResponse);
-  rpc GetReceiveAddress(GetReceiveAddressRequest) returns (GetReceiveAddressResponse);
+  rpc GetNewReceiveAddress(GetNewReceiveAddressRequest) returns (GetNewReceiveAddressResponse);
   rpc ForgetWallet(ForgetWalletRequest) returns (ForgetWalletResponse);
 
   rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);

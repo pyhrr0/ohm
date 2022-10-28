@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::str::FromStr;
 
 use bdk::bitcoin::secp256k1;
 use bdk::bitcoin::util::bip32;
@@ -11,6 +12,27 @@ use crate::db;
 pub use db::CosignerType;
 
 use super::Network;
+
+impl From<db::CosignerRecord> for Cosigner {
+    fn from(record: db::CosignerRecord) -> Self {
+        Self {
+            type_: record.type_,
+            email_address: record.email_address.map(|eml| {
+                EmailAddress::from_str(&eml)
+                    .unwrap_or_else(|x| panic!("invalid email address: {:?}", x))
+            }),
+            xprv: record.xprv.map(|xprv| {
+                bip32::ExtendedPrivKey::from_str(&xprv)
+                    .unwrap_or_else(|x| panic!("invalid xprv: {:?}", x))
+            }),
+            xpub: bip32::ExtendedPubKey::from_str(&record.xpub)
+                .unwrap_or_else(|x| panic!("invalid xpub: {:?}", x)),
+            wallet: record
+                .wallet_uuid
+                .map(|uuid| Uuid::from_str(&uuid).unwrap_or_else(|x| panic!("invalid : {:?}", x))),
+        }
+    }
+}
 
 pub struct Cosigner {
     pub type_: CosignerType,
@@ -96,10 +118,16 @@ impl Cosigner {
         email_address: Option<EmailAddress>,
         xpub: Option<bip32::ExtendedPubKey>,
     ) -> Result<Vec<db::CosignerRecord>, Box<dyn Error>> {
-        db::Cosigner::fetch(connection, uuid, email_address, xpub)
+        db::Cosigner::fetch(
+            connection,
+            uuid.as_ref(),
+            email_address.as_ref(),
+            xpub.as_ref(),
+            None,
+        )
     }
 
     pub fn remove(connection: &mut SqliteConnection, uuid: Uuid) -> Result<usize, Box<dyn Error>> {
-        db::Cosigner::remove(connection, uuid)
+        db::Cosigner::remove(connection, &uuid)
     }
 }

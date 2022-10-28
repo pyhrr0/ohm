@@ -173,30 +173,18 @@ impl grpc_server::OhmApi for Servicer {
         request: Request<proto::GetWalletRequest>,
     ) -> Result<Response<proto::GetWalletResponse>, Status> {
         let mut connection = self.db_connection.lock().unwrap();
+        let wallet_id = request.into_inner().wallet_id;
 
-        let mut records = Wallet::fetch(
-            &mut connection,
-            Some(&request.into_inner().wallet_id),
-            None,
-            None,
-        )
-        .map_err(|err| Status::internal(&err.to_string()))?;
+        let uuid =
+            Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let mut records = Wallet::fetch(&mut connection, Some(&uuid), None, None)
+            .map_err(|err| Status::internal(&err.to_string()))?;
 
         let mut wallet = None;
         if !records.is_empty() {
             let record = records.remove(0);
-
-            wallet = Some(proto::Wallet {
-                wallet_id: record.uuid,
-                balance: record.balance.to_string(),
-                receive_descriptor: record.receive_descriptor,
-                receive_address: record.receive_address,
-                receive_address_index: record.receive_address_index as u64,
-                change_descriptor: record.change_descriptor,
-                change_address: record.change_address,
-                change_address_index: record.change_address_index as u64,
-                transactions: vec![proto::Transaction {}], // TODO
-            });
+            wallet = Some(record.into())
         }
 
         Ok(Response::new(proto::GetWalletResponse { wallet }))
@@ -212,7 +200,7 @@ impl grpc_server::OhmApi for Servicer {
         let mut address_type = None;
         if let Some(type_) = inner.address_type {
             address_type = Some(
-                crate::AddressType::from_int(type_ as i16)
+                AddressType::from_int(type_ as i16)
                     .map_err(|_| Status::internal("invalid address type"))?,
             );
         }
@@ -228,27 +216,34 @@ impl grpc_server::OhmApi for Servicer {
 
         let mut wallets = vec![];
         for record in records {
-            wallets.push(proto::Wallet {
-                wallet_id: record.uuid,
-                receive_descriptor: record.receive_descriptor,
-                receive_address: record.receive_address,
-                receive_address_index: record.receive_address_index as u64,
-                change_descriptor: record.change_descriptor,
-                change_address: record.change_address,
-                change_address_index: record.change_address_index as u64,
-                balance: record.balance.to_string(),
-                transactions: vec![proto::Transaction {}], // TODO
-            });
+            wallets.push(record.into());
         }
 
         Ok(Response::new(proto::FindWalletResponse { wallets }))
     }
 
-    async fn get_receive_address(
+    async fn get_new_receive_address(
         &self,
-        _request: Request<proto::GetReceiveAddressRequest>,
-    ) -> Result<Response<proto::GetReceiveAddressResponse>, Status> {
-        unimplemented!()
+        request: Request<proto::GetNewReceiveAddressRequest>,
+    ) -> Result<Response<proto::GetNewReceiveAddressResponse>, Status> {
+        let mut connection = self.db_connection.lock().unwrap();
+        let wallet_id = request.into_inner().wallet_id;
+
+        let uuid =
+            Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let mut wallet = Wallet::load(&mut connection, uuid)
+            .map_err(|_| Status::invalid_argument("wallet could not be found"))?;
+
+        let address = wallet
+            .get_new_receive_address(&mut connection)
+            .map_err(|err| {
+                Status::internal(format!("unable to get new receive address: {}", err))
+            })?;
+
+        Ok(Response::new(proto::GetNewReceiveAddressResponse {
+            address: address.to_string(),
+        }))
     }
 
     async fn forget_wallet(
@@ -366,7 +361,7 @@ pub enum OhmResponse {
     GetWallet(Response<proto::GetWalletResponse>),
     FindWallet(Response<proto::FindWalletResponse>),
     ForgetWallet(Response<proto::ForgetWalletResponse>),
-    GetReceiveAddress(Response<proto::GetReceiveAddressResponse>),
+    GetNewReceiveAddress(Response<proto::GetNewReceiveAddressResponse>),
     CreatePsbt(Response<proto::CreatePsbtResponse>),
     RegisterPsbt(Response<proto::RegisterPsbtResponse>),
     GetPsbt(Response<proto::GetPsbtResponse>),
