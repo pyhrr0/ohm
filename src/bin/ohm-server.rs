@@ -1,10 +1,8 @@
-use std::error::Error;
-use std::fs::File;
+use std::{error::Error, fs::File};
 
 use structopt::{clap::AppSettings, StructOpt};
 
-use ohm::Config;
-use ohm::Server;
+use ohm::{Config, Server};
 
 #[derive(Debug, StructOpt)]
 #[structopt(global_settings = &[AppSettings::ColoredHelp])]

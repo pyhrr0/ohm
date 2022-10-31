@@ -20,14 +20,11 @@ enum Network {
 
 message Wallet {
   string wallet_id = 1;
-  string balance = 2;
-  string receive_descriptor = 3;
-  string receive_address = 4;
-  uint64 receive_address_index = 5;
-  string change_descriptor = 6;
-  string change_address = 7;
-  uint64 change_address_index = 8;
-  repeated Transaction transactions = 9;
+  uint64 required_sigs = 2;
+  string balance = 3;
+  string descriptor = 4;
+  string receive_address = 5;
+  repeated Transaction transactions = 6;
 }
 
 message CreateWalletRequest {
@@ -52,6 +49,7 @@ message GetWalletResponse {
 message FindWalletRequest {
   optional AddressType address_type = 1;
   optional Network network = 2;
+  optional string descriptor = 3;
 }
 
 message FindWalletResponse {

@@ -15,24 +15,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    wallet (id) {
-        id -> Integer,
-        uuid -> Text,
-        address_type -> SmallInt,
-        network -> SmallInt,
-        receive_descriptor -> Text,
-        receive_address_index -> BigInt,
-        receive_address -> Text,
-        change_descriptor -> Text,
-        change_address_index -> BigInt,
-        change_address -> Text,
-        balance -> Text,
-        required_signatures -> SmallInt,
-        creation_time -> Timestamp,
-    }
-}
-
-diesel::table! {
     psbt (id) {
         id -> Integer,
         uuid -> Text,
@@ -41,3 +23,29 @@ diesel::table! {
         wallet_uuid -> Text,
     }
 }
+
+diesel::table! {
+    wallet (id) {
+        id -> Integer,
+        uuid -> Text,
+        address_type -> SmallInt,
+        network -> SmallInt,
+        receive_descriptor -> Text,
+        receive_descriptor_watch_only -> Text,
+        receive_address_index -> BigInt,
+        receive_address -> Text,
+        change_descriptor -> Text,
+        change_descriptor_watch_only -> Text,
+        change_address_index -> BigInt,
+        change_address -> Text,
+        required_signatures -> SmallInt,
+        balance -> Text,
+        creation_time -> Timestamp,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    cosigner,
+    psbt,
+    wallet,
+);

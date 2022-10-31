@@ -1,20 +1,19 @@
-use std::str::FromStr;
-use std::sync::Mutex;
+use std::{str::FromStr, sync::Mutex};
 
-use bdk::bitcoin::util::bip32;
-use diesel::prelude::SqliteConnection;
+use bdk::{bitcoin::util::bip32, descriptor::DescriptorPublicKey};
+use diesel::SqliteConnection;
 use email_address::EmailAddress;
 use int_enum::IntEnum;
-use tonic::transport::{server::Router, Channel, Server};
-use tonic::{Request, Response, Status};
+use tonic::{
+    transport::{server::Router, Channel, Server},
+    Request, Response, Status,
+};
 use uuid::Uuid;
 
+use super::proto;
 use crate::db;
 use crate::{AddressType, Config, Cosigner, CosignerType, Network, Wallet};
-
-use super::proto;
-use proto::ohm_api_client as grpc_client;
-use proto::ohm_api_server as grpc_server;
+use proto::{ohm_api_client as grpc_client, ohm_api_server as grpc_server};
 
 pub struct Servicer {
     db_connection: Mutex<SqliteConnection>,
@@ -36,20 +35,20 @@ impl grpc_server::OhmApi for Servicer {
         let xpub = bip32::ExtendedPubKey::from_str(&inner.xpub)
             .map_err(|_| Status::invalid_argument("invalid xpub"))?;
 
-        let cosigner = Cosigner::new(
+        let mut cosigner = Cosigner::new(
             CosignerType::External,
             Some(email_address),
             Some(xpub),
             None,
         )
-        .map_err(|err| Status::internal(&err.to_string()))?;
+        .map_err(|_| Status::internal("failed to create cosigner"))?;
 
-        let record = cosigner
-            .store(&mut connection)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        cosigner
+            .save(&mut connection)
+            .map_err(|_| Status::internal("failed to register cosigner"))?;
 
         Ok(Response::new(proto::RegisterCosignerResponse {
-            cosigner: Some(record.into()),
+            cosigner: Some(cosigner.into()),
         }))
     }
 
@@ -63,14 +62,9 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&cosigner_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        let mut records = Cosigner::fetch(&mut connection, Some(uuid), None, None)
-            .map_err(|err| Status::internal(&err.to_string()))?;
-
-        let mut cosigner = None;
-        if !records.is_empty() {
-            let record = records.remove(0);
-            cosigner = Some(record.into())
-        }
+        let cosigner = Cosigner::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate cosigners"))?
+            .map(|cosigner| cosigner.into());
 
         Ok(Response::new(proto::GetCosignerResponse { cosigner }))
     }
@@ -94,12 +88,12 @@ impl grpc_server::OhmApi for Servicer {
             .transpose()
             .map_err(|_| Status::invalid_argument("invalid xpub"))?;
 
-        let records = Cosigner::fetch(&mut connection, None, email_address, xpub)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        let mut results = Cosigner::find(&mut connection, None, email_address, xpub, None)
+            .map_err(|_| Status::internal("failed to enumerate cosigners"))?;
 
         let mut cosigners = vec![];
-        for record in records {
-            cosigners.push(record.into())
+        for i in 0..results.len() {
+            cosigners.push(results.remove(i).into());
         }
 
         Ok(Response::new(proto::FindCosignerResponse { cosigners }))
@@ -115,8 +109,13 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&cosigner_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        Cosigner::remove(&mut connection, uuid)
-            .map_err(|err| Status::not_found(&err.to_string()))?;
+        let mut cosigner = Cosigner::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate cosigners"))?
+            .ok_or_else(|| Status::not_found("cosigner could not be found"))?;
+
+        cosigner
+            .remove(&mut connection)
+            .map_err(|_| Status::internal("failed to remove cosigner"))?;
 
         Ok(Response::new(proto::ForgetCosignerResponse { cosigner_id }))
     }
@@ -157,14 +156,14 @@ impl grpc_server::OhmApi for Servicer {
             inner.required_sigs,
             cosigner_ids,
         )
-        .map_err(|err| Status::internal(&err.to_string()))?;
+        .map_err(|_| Status::internal("failed to create wallet"))?;
 
-        let record = wallet
-            .store(&mut connection)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        wallet
+            .save(&mut connection)
+            .map_err(|_| Status::internal("wallet could not be saved"))?;
 
         Ok(Response::new(proto::CreateWalletResponse {
-            wallet: Some(record.into()),
+            wallet: Some(wallet.into()),
         }))
     }
 
@@ -178,14 +177,9 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        let mut records = Wallet::fetch(&mut connection, Some(&uuid), None, None)
-            .map_err(|err| Status::internal(&err.to_string()))?;
-
-        let mut wallet = None;
-        if !records.is_empty() {
-            let record = records.remove(0);
-            wallet = Some(record.into())
-        }
+        let wallet = Wallet::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .map(|wallet| wallet.into());
 
         Ok(Response::new(proto::GetWalletResponse { wallet }))
     }
@@ -201,7 +195,7 @@ impl grpc_server::OhmApi for Servicer {
         if let Some(type_) = inner.address_type {
             address_type = Some(
                 AddressType::from_int(type_ as i16)
-                    .map_err(|_| Status::internal("invalid address type"))?,
+                    .map_err(|_| Status::invalid_argument("invalid address type"))?,
             );
         }
 
@@ -209,14 +203,27 @@ impl grpc_server::OhmApi for Servicer {
             .network
             .map(|network| Network::from_int(network as i16))
             .transpose()
-            .map_err(|_| Status::internal("invalid network"))?;
+            .map_err(|_| Status::invalid_argument("invalid network"))?;
 
-        let records = Wallet::fetch(&mut connection, None, address_type, network)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        inner
+            .descriptor
+            .as_ref()
+            .map(|descriptor| DescriptorPublicKey::from_str(descriptor))
+            .transpose()
+            .map_err(|_| Status::invalid_argument("invalid receive descriptor"))?;
+
+        let results = Wallet::find(
+            &mut connection,
+            None,
+            address_type,
+            network,
+            inner.descriptor.as_deref(),
+        )
+        .map_err(|_| Status::internal("failed to enumerate wallets"))?;
 
         let mut wallets = vec![];
-        for record in records {
-            wallets.push(record.into());
+        for result in results {
+            wallets.push(result.into());
         }
 
         Ok(Response::new(proto::FindWalletResponse { wallets }))
@@ -232,14 +239,17 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        let mut wallet = Wallet::load(&mut connection, uuid)
-            .map_err(|_| Status::invalid_argument("wallet could not be found"))?;
+        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
-        let address = wallet
-            .get_new_receive_address(&mut connection)
-            .map_err(|err| {
-                Status::internal(format!("unable to get new receive address: {}", err))
-            })?;
+        let address = wallet.new_receive_address().map_err(|err| {
+            Status::internal(format!("unable to get new receive address: {}", err))
+        })?;
+
+        wallet
+            .save(&mut connection)
+            .map_err(|_| Status::internal("wallet could not be saved"))?;
 
         Ok(Response::new(proto::GetNewReceiveAddressResponse {
             address: address.to_string(),
@@ -253,8 +263,16 @@ impl grpc_server::OhmApi for Servicer {
         let mut connection = self.db_connection.lock().unwrap();
         let wallet_id = request.into_inner().wallet_id;
 
-        db::Psbt::remove(&mut connection, &wallet_id)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        let uuid =
+            Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+
+        wallet
+            .remove(&mut connection)
+            .map_err(|_| Status::internal("failed to remove wallet"))?;
 
         Ok(Response::new(proto::ForgetWalletResponse { wallet_id }))
     }

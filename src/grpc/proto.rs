@@ -1,8 +1,6 @@
 use bdk::bitcoin;
 use tonic::include_proto;
 
-use crate::db;
-
 include_proto!("ohm.v1");
 
 impl From<&str> for AddressType {
@@ -31,28 +29,32 @@ impl From<bitcoin::Network> for Network {
     }
 }
 
-impl From<db::CosignerRecord> for Cosigner {
-    fn from(record: db::CosignerRecord) -> Self {
-        Cosigner {
-            cosigner_id: record.uuid,
-            email_address: record.email_address.unwrap_or_else(|| String::from("")),
-            xpub: record.xpub,
-            wallet_id: record.wallet_uuid,
+impl From<crate::Cosigner> for Cosigner {
+    fn from(cosigner: crate::Cosigner) -> Self {
+        Self {
+            cosigner_id: cosigner
+                .uuid()
+                .map_or(String::from(""), |uuid| uuid.to_string()),
+            email_address: cosigner
+                .email_address()
+                .as_ref()
+                .map_or(String::from(""), |email| email.to_string()),
+            xpub: cosigner.xpub().to_string(),
+            wallet_id: cosigner.wallet().map(|uuid| uuid.to_string()),
         }
     }
 }
 
-impl From<db::WalletRecord> for Wallet {
-    fn from(record: db::WalletRecord) -> Self {
-        Wallet {
-            wallet_id: record.uuid,
-            balance: record.balance.to_string(),
-            receive_descriptor: record.receive_descriptor,
-            receive_address: record.receive_address,
-            receive_address_index: record.receive_address_index as u64,
-            change_descriptor: record.change_descriptor,
-            change_address: record.change_address,
-            change_address_index: record.change_address_index as u64,
+impl From<crate::Wallet> for Wallet {
+    fn from(wallet: crate::Wallet) -> Self {
+        Self {
+            wallet_id: wallet
+                .uuid()
+                .map_or(String::from(""), |uuid| uuid.to_string()),
+            required_sigs: wallet.required_signatures(),
+            balance: wallet.balance().unwrap().confirmed.to_string(),
+            descriptor: String::from(wallet.receive_descriptor()),
+            receive_address: wallet.receive_address().unwrap().to_string(),
             transactions: vec![Transaction {}], // TODO
         }
     }

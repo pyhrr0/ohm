@@ -1,5 +1,4 @@
-use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::{net::Ipv4Addr, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use url::Url;

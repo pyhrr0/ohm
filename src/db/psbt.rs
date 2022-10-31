@@ -1,15 +1,14 @@
 use std::error::Error;
 
 use chrono::{NaiveDateTime, Utc};
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
+use diesel::{AsChangeset, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use uuid::Uuid;
 
-use super::schema;
-use schema::psbt::dsl;
+use super::{schema, schema::psbt::dsl};
 
 #[derive(Identifiable, Queryable)]
 #[diesel(table_name = schema::psbt)]
-pub struct Psbt {
+pub struct PsbtRecord {
     pub id: i32,
     pub uuid: String,
     pub base64: String,
@@ -17,16 +16,16 @@ pub struct Psbt {
     pub wallet_uuid: String,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[diesel(table_name = schema::psbt)]
-pub struct NewPsbt<'a> {
+pub struct Psbt<'a> {
     pub uuid: String,
     pub base64: &'a str,
     pub creation_time: NaiveDateTime,
     pub wallet_uuid: &'a str,
 }
 
-impl<'a> NewPsbt<'a> {
+impl<'a> Psbt<'a> {
     pub fn new(base64: &'a str, wallet_id: &'a str) -> Self {
         Self {
             uuid: Uuid::new_v4().to_string(),
@@ -36,17 +35,20 @@ impl<'a> NewPsbt<'a> {
         }
     }
 
-    pub fn store(&self, connection: &mut SqliteConnection) -> Result<Psbt, Box<dyn Error>> {
+    pub fn upsert(&self, connection: &mut SqliteConnection) -> Result<PsbtRecord, Box<dyn Error>> {
         Ok(diesel::insert_into(schema::psbt::table)
             .values(self)
+            .on_conflict(dsl::uuid)
+            .do_update()
+            .set(self)
             .get_result(connection)?)
     }
 
-    pub fn fetch(
+    pub fn find(
         connection: &mut SqliteConnection,
         uuid: Option<&str>,
         wallet_uuid: Option<&str>,
-    ) -> Result<Vec<Psbt>, Box<dyn Error>> {
+    ) -> Result<Vec<PsbtRecord>, Box<dyn Error>> {
         let mut query = dsl::psbt.into_boxed();
 
         if let Some(uuid) = uuid {
@@ -57,7 +59,7 @@ impl<'a> NewPsbt<'a> {
             query = query.filter(schema::psbt::wallet_uuid.eq(wallet_uuid));
         }
 
-        Ok(query.load::<Psbt>(connection)?)
+        Ok(query.load::<PsbtRecord>(connection)?)
     }
 
     pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {

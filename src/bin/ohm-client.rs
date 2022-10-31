@@ -1,7 +1,7 @@
+use std::{error::Error, fmt::Debug};
+
 use bdk::bitcoin::{util::bip32::ExtendedPubKey, Address, Network};
 use email_address::EmailAddress;
-use std::error::Error;
-use std::fmt::Debug;
 use structopt::{clap::AppSettings, StructOpt};
 use tonic::Request;
 use url::Url;
@@ -42,6 +42,7 @@ enum WalletOptions {
     Find {
         address_type: Option<String>, // TODO use AddressType
         network: Option<Network>,
+        descriptor: Option<String>,
     },
     Forget {
         wallet_id: Uuid,
@@ -132,7 +133,7 @@ async fn handle_cosigner_requests(
             xpub,
         } => {
             let request = Request::new(proto::FindCosignerRequest {
-                email_address: email_address.clone().map(|address| address.to_string()),
+                email_address: email_address.as_ref().map(|email| email.to_string()),
                 xpub: xpub.map(|xpub| xpub.to_string()),
             });
             Ok(Response::FindCosigner(client.find_cosigner(request).await?))
@@ -159,7 +160,7 @@ async fn handle_wallet_requests(
             required_sigs,
             cosigner_ids,
         } => {
-            let cosigners = cosigner_ids.iter().map(|c| c.to_string()).collect();
+            let cosigners = cosigner_ids.iter().map(|uuid| uuid.to_string()).collect();
             let request = Request::new(proto::CreateWalletRequest {
                 address_type: proto::AddressType::from(address_type.as_str()).into(),
                 network: proto::Network::from(*network).into(),
@@ -179,12 +180,14 @@ async fn handle_wallet_requests(
         WalletOptions::Find {
             address_type,
             network,
+            descriptor,
         } => {
             let request = Request::new(proto::FindWalletRequest {
                 address_type: address_type
                     .clone()
-                    .map(|addr_type| proto::AddressType::from(addr_type.as_str()).into()),
+                    .map(|address_type| proto::AddressType::from(address_type.as_str()).into()),
                 network: network.map(|network| proto::Network::from(network).into()),
+                descriptor: descriptor.clone(),
             });
             Ok(Response::FindWallet(client.find_wallet(request).await?))
         }

@@ -1,41 +1,41 @@
 use std::error::Error;
 
 use bdk::bitcoin::util::bip32;
-use chrono::NaiveDateTime;
-use chrono::Utc;
-use diesel::deserialize::FromSql;
-use diesel::serialize::{IsNull, Output, ToSql};
-use diesel::sql_types::SmallInt;
-use diesel::sqlite::{Sqlite, SqliteValue};
-use diesel::{deserialize, serialize, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
+use chrono::{NaiveDateTime, Utc};
+use diesel::{
+    deserialize, serialize, sql_types, sqlite, AsChangeset, ExpressionMethods, QueryDsl,
+    RunQueryDsl, SqliteConnection,
+};
 use email_address::EmailAddress;
 use uuid::Uuid;
 
-use super::schema;
-use schema::cosigner::dsl;
+use super::{schema, schema::cosigner::dsl};
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Clone, Copy, FromSqlRow)]
-#[diesel(sql_type = SmallInt)]
+#[diesel(sql_type = sql_types::SmallInt)]
 pub enum CosignerType {
     Internal = 1,
     External = 2,
 }
 
-impl FromSql<SmallInt, Sqlite> for CosignerType {
-    fn from_sql(value: SqliteValue) -> deserialize::Result<Self> {
-        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(value)? {
-            1 => Ok(CosignerType::Internal),
-            2 => Ok(CosignerType::External),
-            x => Err(format!("Unrecognized address type {}", x).into()),
-        }
+impl serialize::ToSql<sql_types::SmallInt, sqlite::Sqlite> for CosignerType {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut serialize::Output<'b, '_, sqlite::Sqlite>,
+    ) -> serialize::Result {
+        out.set_value(*self as i32);
+        Ok(serialize::IsNull::No)
     }
 }
 
-impl ToSql<SmallInt, Sqlite> for CosignerType {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
-        out.set_value(*self as i32);
-        Ok(IsNull::No)
+impl deserialize::FromSql<sql_types::SmallInt, sqlite::Sqlite> for CosignerType {
+    fn from_sql(value: sqlite::SqliteValue) -> deserialize::Result<Self> {
+        match <i16 as deserialize::FromSql<sql_types::SmallInt, sqlite::Sqlite>>::from_sql(value)? {
+            1 => Ok(CosignerType::Internal),
+            2 => Ok(CosignerType::External),
+            x => Err(format!("Unrecognized cosigner type {}", x).into()),
+        }
     }
 }
 
@@ -52,7 +52,7 @@ pub struct CosignerRecord {
     pub wallet_uuid: Option<String>,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[diesel(table_name = schema::cosigner)]
 pub struct Cosigner {
     pub uuid: String,
@@ -75,7 +75,7 @@ impl Cosigner {
         Self {
             uuid: Uuid::new_v4().to_string(),
             type_,
-            email_address: email_address.map(|eml| eml.to_string()),
+            email_address: email_address.map(|email| email.to_string()),
             xprv: xprv.map(|xprv| xprv.to_string()),
             xpub: xpub.to_string(),
             creation_time: Utc::now().naive_local(),
@@ -83,16 +83,19 @@ impl Cosigner {
         }
     }
 
-    pub fn store(
+    pub fn upsert(
         &self,
         connection: &mut SqliteConnection,
     ) -> Result<CosignerRecord, Box<dyn Error>> {
         Ok(diesel::insert_into(schema::cosigner::table)
             .values(self)
+            .on_conflict(dsl::uuid)
+            .do_update()
+            .set(self)
             .get_result(connection)?)
     }
 
-    pub fn fetch(
+    pub fn find(
         connection: &mut SqliteConnection,
         uuid: Option<&Uuid>,
         email_address: Option<&EmailAddress>,
@@ -120,7 +123,7 @@ impl Cosigner {
         Ok(query.load::<CosignerRecord>(connection)?)
     }
 
-    pub fn remove(connection: &mut SqliteConnection, uuid: &Uuid) -> Result<usize, Box<dyn Error>> {
+    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
         Ok(
             diesel::delete(dsl::cosigner.filter(schema::cosigner::uuid.eq(uuid.to_string())))
                 .execute(connection)?,

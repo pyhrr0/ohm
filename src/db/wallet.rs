@@ -1,45 +1,42 @@
-use std::error::Error;
-use std::fmt;
-use std::str::FromStr;
+use std::{error::Error, fmt, str::FromStr};
 
-use bdk::bitcoin;
+use bdk::{bitcoin, Balance};
 use chrono::{NaiveDateTime, Utc};
-use diesel::deserialize::FromSql;
-use diesel::serialize::{IsNull, Output, ToSql};
-use diesel::sql_types::{SmallInt, Text};
-use diesel::sqlite::{Sqlite, SqliteValue};
 use diesel::{
-    deserialize, serialize, AsChangeset, ExpressionMethods, QueryDsl, RunQueryDsl, SaveChangesDsl,
-    SqliteConnection,
+    deserialize, serialize, sql_types, sqlite, AsChangeset, ExpressionMethods, QueryDsl,
+    RunQueryDsl, SqliteConnection,
 };
 use int_enum::IntEnum;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-use super::schema;
-use schema::cosigner::dsl::cosigner;
-use schema::psbt::dsl::psbt;
-use schema::wallet::dsl;
+use super::{
+    schema,
+    schema::{cosigner::dsl::cosigner, psbt::dsl::psbt, wallet::dsl},
+};
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Copy, Clone, FromSqlRow, IntEnum)]
-#[diesel(sql_type = SmallInt)]
+#[diesel(sql_type = sql_types::SmallInt)]
 pub enum AddressType {
     P2sh = 1,
     P2wsh = 2,
     P2shwsh = 3,
 }
 
-impl ToSql<SmallInt, Sqlite> for AddressType {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
+impl serialize::ToSql<sql_types::SmallInt, sqlite::Sqlite> for AddressType {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut serialize::Output<'b, '_, sqlite::Sqlite>,
+    ) -> serialize::Result {
         out.set_value(*self as i32);
-        Ok(IsNull::No)
+        Ok(serialize::IsNull::No)
     }
 }
 
-impl FromSql<SmallInt, Sqlite> for AddressType {
-    fn from_sql(bytes: SqliteValue) -> deserialize::Result<Self> {
-        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
+impl deserialize::FromSql<sql_types::SmallInt, sqlite::Sqlite> for AddressType {
+    fn from_sql(bytes: sqlite::SqliteValue) -> deserialize::Result<Self> {
+        match <i16 as deserialize::FromSql<sql_types::SmallInt, sqlite::Sqlite>>::from_sql(bytes)? {
             1 => Ok(AddressType::P2sh),
             2 => Ok(AddressType::P2wsh),
             3 => Ok(AddressType::P2shwsh),
@@ -50,23 +47,26 @@ impl FromSql<SmallInt, Sqlite> for AddressType {
 
 #[repr(i16)]
 #[derive(AsExpression, Debug, Copy, Clone, FromSqlRow, IntEnum)]
-#[diesel(sql_type = SmallInt)]
+#[diesel(sql_type = sql_types::SmallInt)]
 pub enum Network {
     Regtest = 1,
     Testnet = 2,
     Mainnet = 3,
 }
 
-impl ToSql<SmallInt, Sqlite> for Network {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
+impl serialize::ToSql<sql_types::SmallInt, sqlite::Sqlite> for Network {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut serialize::Output<'b, '_, sqlite::Sqlite>,
+    ) -> serialize::Result {
         out.set_value(*self as i32);
-        Ok(IsNull::No)
+        Ok(serialize::IsNull::No)
     }
 }
 
-impl FromSql<SmallInt, Sqlite> for Network {
-    fn from_sql(bytes: SqliteValue) -> deserialize::Result<Self> {
-        match <i16 as FromSql<SmallInt, Sqlite>>::from_sql(bytes)? {
+impl deserialize::FromSql<sql_types::SmallInt, sqlite::Sqlite> for Network {
+    fn from_sql(bytes: sqlite::SqliteValue) -> deserialize::Result<Self> {
+        match <i16 as deserialize::FromSql<sql_types::SmallInt, sqlite::Sqlite>>::from_sql(bytes)? {
             1 => Ok(Network::Regtest),
             2 => Ok(Network::Testnet),
             3 => Ok(Network::Mainnet),
@@ -86,7 +86,7 @@ impl From<Network> for bitcoin::Network {
 }
 
 #[derive(AsExpression, Debug, FromSqlRow)]
-#[diesel(sql_type = Text)]
+#[diesel(sql_type = sql_types::Text)]
 pub struct DecimalWrapper(Decimal);
 
 impl fmt::Display for DecimalWrapper {
@@ -95,26 +95,34 @@ impl fmt::Display for DecimalWrapper {
     }
 }
 
-impl ToSql<Text, Sqlite> for DecimalWrapper {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
+impl serialize::ToSql<sql_types::Text, sqlite::Sqlite> for DecimalWrapper {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut serialize::Output<'b, '_, sqlite::Sqlite>,
+    ) -> serialize::Result {
         out.set_value(self.to_string());
-        Ok(IsNull::No)
+        Ok(serialize::IsNull::No)
     }
 }
 
-impl FromSql<Text, Sqlite> for DecimalWrapper {
-    fn from_sql(bytes: SqliteValue) -> deserialize::Result<Self> {
-        let decimal = Decimal::from_str(&<String as FromSql<Text, Sqlite>>::from_sql(bytes)?)?;
+impl deserialize::FromSql<sql_types::Text, sqlite::Sqlite> for DecimalWrapper {
+    fn from_sql(bytes: sqlite::SqliteValue) -> deserialize::Result<Self> {
+        let decimal = Decimal::from_str(&<String as deserialize::FromSql<
+            sql_types::Text,
+            sqlite::Sqlite,
+        >>::from_sql(bytes)?)?;
         Ok(DecimalWrapper(decimal))
     }
 }
 
 pub struct WalletDescriptors {
     pub receive_descriptor: String,
+    pub receive_descriptor_watch_only: String,
     pub change_descriptor: String,
+    pub change_descriptor_watch_only: String,
 }
 
-#[derive(Debug, Queryable, Identifiable, AsChangeset)]
+#[derive(Debug, Queryable, Identifiable)]
 #[diesel(table_name = schema::wallet)]
 pub struct WalletRecord {
     pub id: i32,
@@ -122,25 +130,29 @@ pub struct WalletRecord {
     pub address_type: AddressType,
     pub network: Network,
     pub receive_descriptor: String,
+    pub receive_descriptor_watch_only: String,
     pub receive_address_index: i64,
     pub receive_address: String,
     pub change_descriptor: String,
+    pub change_descriptor_watch_only: String,
     pub change_address_index: i64,
     pub change_address: String,
-    pub balance: DecimalWrapper,
     pub required_signatures: i16,
+    pub balance: DecimalWrapper,
     pub creation_time: NaiveDateTime,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[diesel(table_name = schema::wallet)]
 pub struct Wallet<'a> {
     pub uuid: String,
     pub address_type: AddressType,
     pub network: Network,
     pub receive_descriptor: &'a str,
+    pub receive_descriptor_watch_only: &'a str,
     pub receive_address_index: i64,
     pub change_descriptor: &'a str,
+    pub change_descriptor_watch_only: &'a str,
     pub change_address_index: i64,
     pub required_signatures: i16,
     pub balance: DecimalWrapper,
@@ -149,39 +161,48 @@ pub struct Wallet<'a> {
 
 impl<'a> Wallet<'a> {
     pub fn new(
-        uuid: &Uuid,
         address_type: AddressType,
         network: Network,
+        required_signatures: i16,
+        balance: &Balance,
         descriptors: &'a WalletDescriptors,
         receive_address_index: i64,
         change_address_index: i64,
-        required_signatures: i16,
     ) -> Self {
         Self {
-            uuid: uuid.to_string(),
+            uuid: Uuid::new_v4().to_string(),
             address_type,
             network,
             receive_descriptor: &descriptors.receive_descriptor,
+            receive_descriptor_watch_only: &descriptors.receive_descriptor_watch_only,
             receive_address_index,
             change_descriptor: &descriptors.change_descriptor,
+            change_descriptor_watch_only: &descriptors.change_descriptor_watch_only,
             change_address_index,
             required_signatures,
-            balance: DecimalWrapper(Decimal::new(0, 0)),
+            balance: DecimalWrapper(Decimal::from(balance.confirmed)),
             creation_time: Utc::now().naive_local(),
         }
     }
 
-    pub fn store(&self, connection: &mut SqliteConnection) -> Result<WalletRecord, Box<dyn Error>> {
+    pub fn upsert(
+        &self,
+        connection: &mut SqliteConnection,
+    ) -> Result<WalletRecord, Box<dyn Error>> {
         Ok(diesel::insert_into(schema::wallet::table)
             .values(self)
+            .on_conflict(dsl::uuid)
+            .do_update()
+            .set(self)
             .get_result(connection)?)
     }
 
-    pub fn fetch(
+    pub fn find(
         connection: &mut SqliteConnection,
         uuid: Option<&Uuid>,
         address_type: Option<AddressType>,
         network: Option<Network>,
+        receive_descriptor: Option<&str>,
     ) -> Result<Vec<WalletRecord>, Box<dyn Error>> {
         let mut query = dsl::wallet.into_boxed();
 
@@ -197,41 +218,14 @@ impl<'a> Wallet<'a> {
             query = query.filter(schema::wallet::network.eq(network));
         }
 
+        if let Some(descriptor) = receive_descriptor {
+            query = query.filter(schema::wallet::receive_descriptor_watch_only.eq(descriptor));
+        }
+
         Ok(query.load::<WalletRecord>(connection)?)
     }
 
-    pub fn update(
-        connection: &mut SqliteConnection,
-        uuid: &Uuid,
-        receive_address: Option<&bitcoin::Address>,
-        receive_address_index: Option<u64>,
-        change_address: Option<&bitcoin::Address>,
-        change_address_index: Option<u64>,
-    ) -> Result<WalletRecord, Box<dyn Error>> {
-        let mut wallet = dsl::wallet
-            .filter(schema::wallet::uuid.eq(uuid.to_string()))
-            .first::<WalletRecord>(connection)?;
-
-        if let Some(addr) = receive_address {
-            wallet.receive_address = addr.to_string();
-        }
-
-        if let Some(index) = receive_address_index {
-            wallet.receive_address_index = index as i64;
-        }
-
-        if let Some(addr) = change_address {
-            wallet.change_address = addr.to_string();
-        }
-
-        if let Some(index) = change_address_index {
-            wallet.change_address_index = index as i64;
-        }
-
-        Ok(wallet.save_changes(connection)?)
-    }
-
-    pub fn remove(connection: &mut SqliteConnection, uuid: Uuid) -> Result<usize, Box<dyn Error>> {
+    pub fn remove(connection: &mut SqliteConnection, uuid: &str) -> Result<usize, Box<dyn Error>> {
         diesel::delete(cosigner.filter(schema::cosigner::wallet_uuid.eq(uuid.to_string())))
             .execute(connection)?;
         diesel::delete(psbt.filter(schema::psbt::wallet_uuid.eq(uuid.to_string())))
