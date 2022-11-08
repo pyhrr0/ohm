@@ -6,10 +6,8 @@ import "ohm/v1/models/transaction.proto";
 
 message Psbt {
   string psbt_id = 1;
-  string amount = 2;
-  string recipient = 3;
-  string wallet_id = 4;
-  string base64 = 5;
+  string base64 = 2;
+  string wallet_id = 3;
 }
 
 message CreatePsbtRequest {

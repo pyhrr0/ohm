@@ -14,3 +14,6 @@ pub use cosigner::{Cosigner, CosignerType};
 
 mod wallet;
 pub use wallet::{AddressType, Network, Wallet};
+
+mod psbt;
+pub use psbt::Psbt;

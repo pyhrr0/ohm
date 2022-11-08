@@ -87,7 +87,7 @@ impl From<Network> for bitcoin::Network {
 
 #[derive(AsExpression, Debug, FromSqlRow)]
 #[diesel(sql_type = sql_types::Text)]
-pub struct DecimalWrapper(Decimal);
+pub struct DecimalWrapper(pub Decimal);
 
 impl fmt::Display for DecimalWrapper {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

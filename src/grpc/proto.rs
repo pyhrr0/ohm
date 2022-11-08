@@ -59,3 +59,15 @@ impl From<crate::Wallet> for Wallet {
         }
     }
 }
+
+impl From<&mut crate::Psbt> for Psbt {
+    fn from(psbt: &mut crate::Psbt) -> Self {
+        Self {
+            psbt_id: psbt
+                .uuid()
+                .map_or(String::from(""), |uuid| uuid.to_string()),
+            wallet_id: psbt.wallet().to_string(),
+            base64: psbt.base64().to_string(),
+        }
+    }
+}

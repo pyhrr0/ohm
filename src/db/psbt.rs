@@ -22,16 +22,16 @@ pub struct Psbt<'a> {
     pub uuid: String,
     pub base64: &'a str,
     pub creation_time: NaiveDateTime,
-    pub wallet_uuid: &'a str,
+    pub wallet_uuid: String,
 }
 
 impl<'a> Psbt<'a> {
-    pub fn new(base64: &'a str, wallet_id: &'a str) -> Self {
+    pub fn new(base64: &'a str, wallet_id: &'a Uuid) -> Self {
         Self {
             uuid: Uuid::new_v4().to_string(),
             base64,
             creation_time: Utc::now().naive_local(),
-            wallet_uuid: wallet_id,
+            wallet_uuid: wallet_id.to_string(),
         }
     }
 
@@ -46,17 +46,17 @@ impl<'a> Psbt<'a> {
 
     pub fn find(
         connection: &mut SqliteConnection,
-        uuid: Option<&str>,
-        wallet_uuid: Option<&str>,
+        uuid: Option<&Uuid>,
+        wallet_uuid: Option<&Uuid>,
     ) -> Result<Vec<PsbtRecord>, Box<dyn Error>> {
         let mut query = dsl::psbt.into_boxed();
 
         if let Some(uuid) = uuid {
-            query = query.filter(schema::psbt::uuid.eq(uuid));
+            query = query.filter(schema::psbt::uuid.eq(uuid.to_string()));
         }
 
         if let Some(wallet_uuid) = wallet_uuid {
-            query = query.filter(schema::psbt::wallet_uuid.eq(wallet_uuid));
+            query = query.filter(schema::psbt::wallet_uuid.eq(wallet_uuid.to_string()));
         }
 
         Ok(query.load::<PsbtRecord>(connection)?)

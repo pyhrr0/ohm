@@ -1,5 +1,4 @@
-use std::error::Error;
-use std::str::FromStr;
+use std::{collections::HashMap, error::Error, str::FromStr};
 
 use bdk::{
     bitcoin::{util::bip32, Address},
@@ -9,12 +8,13 @@ use bdk::{
     electrum_client::Client,
     keys::{IntoDescriptorKey, ScriptContext},
     wallet::AddressIndex,
-    Balance, SyncOptions,
+    Balance, FeeRate, SyncOptions,
 };
 use diesel::SqliteConnection;
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use uuid::Uuid;
 
-use super::{Cosigner, CosignerType};
+use super::{Cosigner, CosignerType, Psbt};
 use crate::{db, db::WalletDescriptors};
 pub use db::{AddressType, Network};
 
@@ -41,6 +41,7 @@ pub struct Wallet {
     descriptors: WalletDescriptors,
     receive_address_index: u64,
     change_address_index: u64,
+    partially_signed_txs: HashMap<String, Psbt>,
     bdk_handle: bdk::Wallet<MemoryDatabase>,
     internal_cosigner: Cosigner,
 }
@@ -88,6 +89,7 @@ impl Wallet {
             },
             receive_address_index: 0,
             change_address_index: 0,
+            partially_signed_txs: HashMap::new(),
             internal_cosigner: cosigner,
             bdk_handle,
         })
@@ -132,7 +134,6 @@ impl Wallet {
             )?;
 
             wallets.push(Wallet {
-                uuid: Some(record.uuid),
                 address_type: record.address_type,
                 network: record.network,
                 required_signatures: record.required_signatures as u64,
@@ -144,6 +145,8 @@ impl Wallet {
                 },
                 receive_address_index: record.receive_address_index as u64,
                 change_address_index: record.change_address_index as u64,
+                partially_signed_txs: Self::get_psbts(connection, Uuid::from_str(&record.uuid)?)?,
+                uuid: Some(record.uuid),
                 internal_cosigner: cosigner,
                 bdk_handle,
             });
@@ -196,6 +199,19 @@ impl Wallet {
         }
 
         Ok(xpubs)
+    }
+
+    fn get_psbts(
+        connection: &mut SqliteConnection,
+        wallet: Uuid,
+    ) -> Result<HashMap<String, Psbt>, Box<dyn Error>> {
+        let mut psbts = HashMap::new();
+        for psbt in Psbt::from_db(connection, None, Some(wallet))? {
+            let uuid = psbt.uuid().unwrap().to_string();
+            psbts.insert(uuid, psbt);
+        }
+
+        Ok(psbts)
     }
 
     fn initialize_bdk_handle(
@@ -273,8 +289,40 @@ impl Wallet {
         self.required_signatures
     }
 
+    pub fn partially_signed_transactions(&self) -> &HashMap<String, Psbt> {
+        &self.partially_signed_txs
+    }
+
     pub fn uuid(&self) -> Option<&str> {
         self.uuid.as_deref()
+    }
+
+    pub fn create_psbt(
+        &mut self,
+        connection: &mut SqliteConnection,
+        amount: Decimal,
+        recipient: Address,
+    ) -> Result<&mut Psbt, Box<dyn Error>> {
+        let mut builder = self.bdk_handle.build_tx();
+        builder
+            .add_recipient(
+                recipient.script_pubkey(),
+                amount.to_i64().ok_or("unable to convert amount to i64")? as u64,
+            )
+            .enable_rbf()
+            .fee_rate(FeeRate::from_sat_per_vb(1.0));
+
+        let (bdk_handle, _details) = builder.finish()?;
+        let mut psbt = Psbt::new(
+            bdk_handle,
+            Uuid::from_str(self.uuid.as_ref().ok_or("please save this wallet first")?)?,
+        );
+
+        psbt.save(connection)?;
+        let uuid = psbt.uuid().unwrap().to_string();
+        self.partially_signed_txs.insert(uuid.clone(), psbt);
+
+        Ok(self.partially_signed_txs.get_mut(&uuid).unwrap())
     }
 
     pub fn remove(&mut self, connection: &mut SqliteConnection) -> Result<(), Box<dyn Error>> {

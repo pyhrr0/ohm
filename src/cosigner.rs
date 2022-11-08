@@ -27,7 +27,7 @@ impl Cosigner {
         email_address: Option<EmailAddress>,
         xpub: Option<bip32::ExtendedPubKey>,
         network: Option<Network>,
-    ) -> Result<Cosigner, Box<dyn Error>> {
+    ) -> Result<Self, Box<dyn Error>> {
         let (xprv, xpub) = match type_ {
             CosignerType::Internal => {
                 if let Some(network) = network {

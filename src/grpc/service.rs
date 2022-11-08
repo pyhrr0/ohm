@@ -1,9 +1,13 @@
 use std::{str::FromStr, sync::Mutex};
 
-use bdk::{bitcoin::util::bip32, descriptor::DescriptorPublicKey};
+use bdk::{
+    bitcoin::{util::bip32, Address},
+    descriptor::DescriptorPublicKey,
+};
 use diesel::SqliteConnection;
 use email_address::EmailAddress;
 use int_enum::IntEnum;
+use rust_decimal::Decimal;
 use tonic::{
     transport::{server::Router, Channel, Server},
     Request, Response, Status,
@@ -279,9 +283,31 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn create_psbt(
         &self,
-        _request: Request<proto::CreatePsbtRequest>,
+        request: Request<proto::CreatePsbtRequest>,
     ) -> Result<Response<proto::CreatePsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let inner = request.into_inner();
+
+        let uuid = Uuid::from_str(&inner.wallet_id)
+            .map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let amount = Decimal::from_str(&inner.amount)
+            .map_err(|_| Status::invalid_argument("invalid amount"))?;
+
+        let recipient = Address::from_str(&inner.recipient)
+            .map_err(|_| Status::invalid_argument("invalid recipient"))?;
+
+        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+
+        let psbt = wallet
+            .create_psbt(&mut connection, amount, recipient)
+            .map_err(|_| Status::internal("failed to create a psbt"))?;
+
+        Ok(Response::new(proto::CreatePsbtResponse {
+            psbt: Some(psbt.into()),
+        }))
     }
 
     async fn register_psbt(
