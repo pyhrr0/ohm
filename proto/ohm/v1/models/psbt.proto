@@ -42,7 +42,7 @@ message FindPsbtRequest {
 }
 
 message FindPsbtResponse {
-    repeated Psbt psbt = 1;
+    repeated Psbt psbts = 1;
 }
 
 message SignPsbtRequest {

@@ -336,9 +336,23 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn find_psbt(
         &self,
-        _request: Request<proto::FindPsbtRequest>,
+        request: Request<proto::FindPsbtRequest>,
     ) -> Result<Response<proto::FindPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let wallet_id = request.into_inner().wallet_id;
+
+        let uuid =
+            Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let mut results = Psbt::find(&mut connection, None, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate psbts"))?;
+
+        let mut psbts = vec![];
+        for i in 0..results.len() {
+            psbts.push((&results.remove(i)).into());
+        }
+
+        Ok(Response::new(proto::FindPsbtResponse { psbts }))
     }
 
     async fn sign_psbt(
@@ -369,8 +383,15 @@ impl grpc_server::OhmApi for Servicer {
         let mut connection = self.db_connection.lock().unwrap();
         let psbt_id = request.into_inner().psbt_id;
 
-        db::Psbt::remove(&mut connection, &psbt_id)
-            .map_err(|err| Status::internal(&err.to_string()))?;
+        let uuid =
+            Uuid::from_str(&psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let mut psbt = Psbt::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate PSBTs"))?
+            .ok_or_else(|| Status::not_found("PSBT could not be found"))?;
+
+        psbt.remove(&mut connection)
+            .map_err(|_| Status::internal("failed to remove cosigner"))?;
 
         Ok(Response::new(proto::ForgetPsbtResponse { psbt_id }))
     }
