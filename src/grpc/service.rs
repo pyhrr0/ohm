@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use super::proto;
 use crate::db;
-use crate::{AddressType, Config, Cosigner, CosignerType, Network, Wallet};
+use crate::{AddressType, Config, Cosigner, CosignerType, Network, Psbt, Wallet};
 use proto::{ohm_api_client as grpc_client, ohm_api_server as grpc_server};
 
 pub struct Servicer {
@@ -306,7 +306,7 @@ impl grpc_server::OhmApi for Servicer {
             .map_err(|_| Status::internal("failed to create a psbt"))?;
 
         Ok(Response::new(proto::CreatePsbtResponse {
-            psbt: Some(psbt.into()),
+            psbt: Some((&*psbt).into()),
         }))
     }
 
@@ -319,9 +319,19 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn get_psbt(
         &self,
-        _request: Request<proto::GetPsbtRequest>,
+        request: Request<proto::GetPsbtRequest>,
     ) -> Result<Response<proto::GetPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let psbt_id = request.into_inner().psbt_id;
+
+        let uuid =
+            Uuid::from_str(&psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let psbt = Psbt::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate psbts"))?
+            .map(|psbt| (&psbt).into());
+
+        Ok(Response::new(proto::GetPsbtResponse { psbt }))
     }
 
     async fn find_psbt(

@@ -60,8 +60,8 @@ impl From<crate::Wallet> for Wallet {
     }
 }
 
-impl From<&mut crate::Psbt> for Psbt {
-    fn from(psbt: &mut crate::Psbt) -> Self {
+impl From<&crate::Psbt> for Psbt {
+    fn from(psbt: &crate::Psbt) -> Self {
         Self {
             psbt_id: psbt
                 .uuid()

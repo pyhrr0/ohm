@@ -206,7 +206,7 @@ impl Wallet {
         wallet: Uuid,
     ) -> Result<HashMap<String, Psbt>, Box<dyn Error>> {
         let mut psbts = HashMap::new();
-        for psbt in Psbt::from_db(connection, None, Some(wallet))? {
+        for psbt in Psbt::find(connection, None, Some(wallet))? {
             let uuid = psbt.uuid().unwrap().to_string();
             psbts.insert(uuid, psbt);
         }

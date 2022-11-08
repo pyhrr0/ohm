@@ -26,6 +26,18 @@ impl Psbt {
     pub fn from_db(
         connection: &mut SqliteConnection,
         uuid: Option<Uuid>,
+    ) -> Result<Option<Self>, Box<dyn Error>> {
+        let mut psbts = Self::find(connection, uuid, None)?;
+
+        Ok(match !psbts.is_empty() {
+            true => Some(psbts.remove(0)),
+            false => None,
+        })
+    }
+
+    pub fn find(
+        connection: &mut SqliteConnection,
+        uuid: Option<Uuid>,
         wallet: Option<Uuid>,
     ) -> Result<Vec<Self>, Box<dyn Error>> {
         let records = db::Psbt::find(connection, uuid.as_ref(), wallet.as_ref())?;
