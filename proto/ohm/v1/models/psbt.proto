@@ -55,7 +55,7 @@ message SignPsbtResponse {
 
 message CombineWithOtherPsbtRequest {
   string psbt_id = 1;
-  string psbt = 3;
+  string base64 = 3;
 }
 
 message CombineWithOtherPsbtResponse {

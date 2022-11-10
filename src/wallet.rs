@@ -350,6 +350,23 @@ impl Wallet {
         Ok(psbt)
     }
 
+    pub fn combine_psbt(
+        &mut self,
+        connection: &mut SqliteConnection,
+        uuid: Uuid,
+        additional_psbt: PartiallySignedTransaction,
+    ) -> Result<&Psbt, Box<dyn Error>> {
+        let psbt = self
+            .partially_signed_txs
+            .get_mut(&uuid.to_string())
+            .ok_or("failed to find PSBT")?;
+
+        psbt.bdk_handle().combine(additional_psbt)?;
+        psbt.save(connection)?;
+
+        Ok(psbt)
+    }
+
     pub fn remove(&mut self, connection: &mut SqliteConnection) -> Result<(), Box<dyn Error>> {
         if let Some(uuid) = &self.uuid {
             db::Wallet::remove(connection, uuid)?;

@@ -251,7 +251,7 @@ async fn handle_psbt_requests(
         PsbtOptions::Combine { psbt_id, psbt } => {
             let request = Request::new(proto::CombineWithOtherPsbtRequest {
                 psbt_id: psbt_id.to_string(),
-                psbt: psbt.clone(),
+                base64: psbt.clone(),
             });
             Ok(Response::CombineWithOtherPsbt(
                 client.combine_with_other_psbt(request).await?,

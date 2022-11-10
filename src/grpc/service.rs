@@ -303,7 +303,7 @@ impl grpc_server::OhmApi for Servicer {
 
         let psbt = wallet
             .create_psbt(&mut connection, amount, recipient)
-            .map_err(|_| Status::internal("failed to create a psbt"))?;
+            .map_err(|_| Status::internal("failed to create a PSBT"))?;
 
         Ok(Response::new(proto::CreatePsbtResponse {
             psbt: Some(psbt.into()),
@@ -329,7 +329,7 @@ impl grpc_server::OhmApi for Servicer {
 
         let psbt = wallet
             .import_psbt(&mut connection, psbt)
-            .map_err(|_| Status::internal("failed to register psbt"))?;
+            .map_err(|_| Status::internal("failed to register PSBT"))?;
 
         Ok(Response::new(proto::RegisterPsbtResponse {
             psbt: Some(psbt.into()),
@@ -347,7 +347,7 @@ impl grpc_server::OhmApi for Servicer {
             Uuid::from_str(&psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
         let psbt = Psbt::from_db(&mut connection, Some(uuid))
-            .map_err(|_| Status::internal("failed to enumerate psbts"))?
+            .map_err(|_| Status::internal("failed to enumerate PSBTs"))?
             .map(|psbt| (&psbt).into());
 
         Ok(Response::new(proto::GetPsbtResponse { psbt }))
@@ -364,7 +364,7 @@ impl grpc_server::OhmApi for Servicer {
             Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
         let mut results = Psbt::find(&mut connection, None, Some(uuid))
-            .map_err(|_| Status::internal("failed to enumerate psbts"))?;
+            .map_err(|_| Status::internal("failed to enumerate PSBTs"))?;
 
         let mut psbts = vec![];
         for i in 0..results.len() {
@@ -385,8 +385,8 @@ impl grpc_server::OhmApi for Servicer {
             Uuid::from_str(&psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
         let psbt = Psbt::from_db(&mut connection, Some(uuid))
-            .map_err(|_| Status::internal("failed to enumerate psbts"))?
-            .ok_or_else(|| Status::not_found("psbt could not be found"))?;
+            .map_err(|_| Status::internal("failed to enumerate PSBTs"))?
+            .ok_or_else(|| Status::not_found("PSBT could not be found"))?;
 
         let mut wallet = Wallet::from_db(&mut connection, Some(*psbt.wallet()))
             .map_err(|_| Status::internal("failed to enumerate wallets"))?
@@ -394,7 +394,7 @@ impl grpc_server::OhmApi for Servicer {
 
         let signed_psbt = wallet
             .sign_psbt(&mut connection, uuid)
-            .map_err(|_| Status::internal("failed to sign psbt"))?;
+            .map_err(|_| Status::internal("failed to sign PSBT"))?;
 
         Ok(Response::new(proto::SignPsbtResponse {
             psbt: Some(signed_psbt.into()),
@@ -403,9 +403,32 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn combine_with_other_psbt(
         &self,
-        _request: Request<proto::CombineWithOtherPsbtRequest>,
+        request: Request<proto::CombineWithOtherPsbtRequest>,
     ) -> Result<Response<proto::CombineWithOtherPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let inner = request.into_inner();
+
+        let uuid =
+            Uuid::from_str(&inner.psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let psbt = Psbt::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate PSBTs"))?
+            .ok_or_else(|| Status::not_found("PSBT could not be found"))?;
+
+        let additional_psbt = PartiallySignedTransaction::from_str(&inner.base64)
+            .map_err(|_| Status::invalid_argument("invalid PSBT"))?;
+
+        let mut wallet = Wallet::from_db(&mut connection, Some(*psbt.wallet()))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+
+        let combined_psbt = wallet
+            .combine_psbt(&mut connection, uuid, additional_psbt)
+            .map_err(|_| Status::internal("failed to combine PSBTs"))?;
+
+        Ok(Response::new(proto::CombineWithOtherPsbtResponse {
+            psbt: Some(combined_psbt.into()),
+        }))
     }
 
     async fn broadcast_psbt(
