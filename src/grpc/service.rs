@@ -21,7 +21,7 @@ use proto::{ohm_api_client as grpc_client, ohm_api_server as grpc_server};
 
 pub struct Servicer {
     db_connection: Mutex<SqliteConnection>,
-    _config: Config,
+    config: Config,
 }
 
 #[tonic::async_trait]
@@ -155,6 +155,7 @@ impl grpc_server::OhmApi for Servicer {
 
         let mut wallet = Wallet::new(
             &mut connection,
+            &self.config.backend_url,
             address_type,
             network,
             inner.required_sigs,
@@ -181,7 +182,7 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        let wallet = Wallet::from_db(&mut connection, Some(uuid))
+        let wallet = Wallet::from_db(&mut connection, &self.config.backend_url, Some(uuid))
             .map_err(|_| Status::internal("failed to enumerate wallets"))?
             .map(|wallet| wallet.into());
 
@@ -218,6 +219,7 @@ impl grpc_server::OhmApi for Servicer {
 
         let results = Wallet::find(
             &mut connection,
+            &self.config.backend_url,
             None,
             address_type,
             network,
@@ -243,7 +245,7 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+        let mut wallet = Wallet::from_db(&mut connection, &self.config.backend_url, Some(uuid))
             .map_err(|_| Status::internal("failed to enumerate wallets"))?
             .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
@@ -270,7 +272,7 @@ impl grpc_server::OhmApi for Servicer {
         let uuid =
             Uuid::from_str(&wallet_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
 
-        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+        let mut wallet = Wallet::from_db(&mut connection, &self.config.backend_url, Some(uuid))
             .map_err(|_| Status::internal("failed to enumerate wallets"))?
             .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
@@ -297,7 +299,7 @@ impl grpc_server::OhmApi for Servicer {
         let recipient = Address::from_str(&inner.recipient)
             .map_err(|_| Status::invalid_argument("invalid recipient"))?;
 
-        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+        let mut wallet = Wallet::from_db(&mut connection, &self.config.backend_url, Some(uuid))
             .map_err(|_| Status::internal("failed to enumerate wallets"))?
             .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
@@ -323,7 +325,7 @@ impl grpc_server::OhmApi for Servicer {
         let psbt = PartiallySignedTransaction::from_str(&inner.base64)
             .map_err(|_| Status::invalid_argument("invalid PSBT"))?;
 
-        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+        let mut wallet = Wallet::from_db(&mut connection, &self.config.backend_url, Some(uuid))
             .map_err(|_| Status::internal("failed to enumerate wallets"))?
             .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
@@ -388,9 +390,13 @@ impl grpc_server::OhmApi for Servicer {
             .map_err(|_| Status::internal("failed to enumerate PSBTs"))?
             .ok_or_else(|| Status::not_found("PSBT could not be found"))?;
 
-        let mut wallet = Wallet::from_db(&mut connection, Some(*psbt.wallet()))
-            .map_err(|_| Status::internal("failed to enumerate wallets"))?
-            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+        let mut wallet = Wallet::from_db(
+            &mut connection,
+            &self.config.backend_url,
+            Some(*psbt.wallet()),
+        )
+        .map_err(|_| Status::internal("failed to enumerate wallets"))?
+        .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
         let signed_psbt = wallet
             .sign_psbt(&mut connection, uuid)
@@ -418,9 +424,13 @@ impl grpc_server::OhmApi for Servicer {
         let additional_psbt = PartiallySignedTransaction::from_str(&inner.base64)
             .map_err(|_| Status::invalid_argument("invalid PSBT"))?;
 
-        let mut wallet = Wallet::from_db(&mut connection, Some(*psbt.wallet()))
-            .map_err(|_| Status::internal("failed to enumerate wallets"))?
-            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+        let mut wallet = Wallet::from_db(
+            &mut connection,
+            &self.config.backend_url,
+            Some(*psbt.wallet()),
+        )
+        .map_err(|_| Status::internal("failed to enumerate wallets"))?
+        .ok_or_else(|| Status::not_found("wallet could not be found"))?;
 
         let combined_psbt = wallet
             .combine_psbt(&mut connection, uuid, additional_psbt)
@@ -433,9 +443,33 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn broadcast_psbt(
         &self,
-        _request: Request<proto::BroadcastPsbtRequest>,
+        request: Request<proto::BroadcastPsbtRequest>,
     ) -> Result<Response<proto::BroadcastPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let psbt_id = request.into_inner().psbt_id;
+
+        let uuid =
+            Uuid::from_str(&psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let psbt = Psbt::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate PSBTs"))?
+            .ok_or_else(|| Status::not_found("PSBT could not be found"))?;
+
+        let mut wallet = Wallet::from_db(
+            &mut connection,
+            &self.config.backend_url,
+            Some(*psbt.wallet()),
+        )
+        .map_err(|_| Status::internal("failed to enumerate wallets"))?
+        .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+
+        let tx_id = wallet
+            .broadcast_psbt(&mut connection, uuid)
+            .map_err(|_| Status::internal("failed to broadcast PSBT"))?;
+
+        Ok(Response::new(proto::BroadcastPsbtResponse {
+            tx_id: tx_id.to_string(),
+        }))
     }
 
     async fn forget_psbt(
@@ -471,7 +505,7 @@ impl Servicer {
                 db_connection: Mutex::new(db::establish_connection(
                     &config.db_path.to_string_lossy(),
                 )),
-                _config: config,
+                config,
             })),
         )
     }

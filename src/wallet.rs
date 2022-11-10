@@ -1,8 +1,8 @@
 use std::{collections::HashMap, error::Error, str::FromStr};
 
 use bdk::{
-    bitcoin::{psbt::PartiallySignedTransaction, util::bip32, Address},
-    blockchain::ElectrumBlockchain,
+    bitcoin::{psbt::PartiallySignedTransaction, util::bip32, Address, Txid},
+    blockchain::{Blockchain, ElectrumBlockchain},
     database::MemoryDatabase,
     descriptor,
     electrum_client::Client,
@@ -12,6 +12,7 @@ use bdk::{
 };
 use diesel::SqliteConnection;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
+use url::Url;
 use uuid::Uuid;
 
 use super::{Cosigner, CosignerType, Psbt};
@@ -42,6 +43,7 @@ pub struct Wallet {
     receive_address_index: u64,
     change_address_index: u64,
     partially_signed_txs: HashMap<String, Psbt>,
+    blockchain: ElectrumBlockchain,
     bdk_handle: bdk::Wallet<MemoryDatabase>,
     internal_cosigner: Cosigner,
 }
@@ -49,6 +51,7 @@ pub struct Wallet {
 impl Wallet {
     pub fn new(
         connection: &mut SqliteConnection,
+        backend_url: &Url,
         address_type: AddressType,
         network: Network,
         required_signatures: u64,
@@ -73,8 +76,13 @@ impl Wallet {
             &xpubs,
         )?;
 
-        let bdk_handle =
-            Self::initialize_bdk_handle(&receive_descriptor, &change_descriptor, network)?;
+        let blockchain = Self::get_blockchain(backend_url)?;
+        let bdk_handle = Self::initialize_bdk_handle(
+            &receive_descriptor,
+            &change_descriptor,
+            &blockchain,
+            network,
+        )?;
 
         Ok(Self {
             uuid: None,
@@ -90,6 +98,7 @@ impl Wallet {
             receive_address_index: 0,
             change_address_index: 0,
             partially_signed_txs: HashMap::new(),
+            blockchain,
             internal_cosigner: cosigner,
             bdk_handle,
         })
@@ -97,9 +106,10 @@ impl Wallet {
 
     pub fn from_db(
         connection: &mut SqliteConnection,
+        backend_url: &Url,
         uuid: Option<Uuid>,
     ) -> Result<Option<Self>, Box<dyn Error>> {
-        let mut wallets = Self::find(connection, uuid, None, None, None)?;
+        let mut wallets = Self::find(connection, backend_url, uuid, None, None, None)?;
 
         Ok(match !wallets.is_empty() {
             true => Some(wallets.remove(0)),
@@ -109,6 +119,7 @@ impl Wallet {
 
     pub fn find(
         connection: &mut SqliteConnection,
+        backend_url: &Url,
         uuid: Option<Uuid>,
         address_type: Option<AddressType>,
         network: Option<Network>,
@@ -127,9 +138,11 @@ impl Wallet {
             let cosigner = Cosigner::from_db(connection, Some(Uuid::from_str(&record.uuid)?))?
                 .ok_or("associated internal cosigner could not be found")?;
 
+            let blockchain = Self::get_blockchain(backend_url)?;
             let bdk_handle = Self::initialize_bdk_handle(
                 &record.receive_descriptor, // TODO decrypt
                 &record.change_descriptor,  // TODO decrypt
+                &blockchain,
                 record.network,
             )?;
 
@@ -146,6 +159,7 @@ impl Wallet {
                 receive_address_index: record.receive_address_index as u64,
                 change_address_index: record.change_address_index as u64,
                 partially_signed_txs: Self::get_psbts(connection, Uuid::from_str(&record.uuid)?)?,
+                blockchain,
                 uuid: Some(record.uuid),
                 internal_cosigner: cosigner,
                 bdk_handle,
@@ -214,9 +228,14 @@ impl Wallet {
         Ok(psbts)
     }
 
+    fn get_blockchain(backend_url: &Url) -> Result<ElectrumBlockchain, Box<dyn Error>> {
+        Ok(ElectrumBlockchain::from(Client::new(backend_url.as_str())?))
+    }
+
     fn initialize_bdk_handle(
         receive_descriptor: &str,
         change_descriptor: &str,
+        blockchain: &ElectrumBlockchain,
         network: Network,
     ) -> Result<bdk::Wallet<MemoryDatabase>, Box<dyn Error>> {
         let wallet = bdk::Wallet::new(
@@ -226,9 +245,7 @@ impl Wallet {
             MemoryDatabase::default(),
         )?;
 
-        let blockchain =
-            ElectrumBlockchain::from(Client::new("ssl://electrum.blockstream.info:60002")?);
-        wallet.sync(&blockchain, SyncOptions::default())?;
+        wallet.sync(blockchain, SyncOptions::default())?;
 
         Ok(wallet)
     }
@@ -343,8 +360,7 @@ impl Wallet {
             .get_mut(&uuid.to_string())
             .ok_or("failed to find PSBT")?;
 
-        self.bdk_handle
-            .sign(psbt.bdk_handle(), SignOptions::default())?;
+        self.bdk_handle.sign(psbt.inner(), SignOptions::default())?;
         psbt.save(connection)?;
 
         Ok(psbt)
@@ -361,10 +377,29 @@ impl Wallet {
             .get_mut(&uuid.to_string())
             .ok_or("failed to find PSBT")?;
 
-        psbt.bdk_handle().combine(additional_psbt)?;
+        psbt.inner().combine(additional_psbt)?;
         psbt.save(connection)?;
 
         Ok(psbt)
+    }
+
+    pub fn broadcast_psbt(
+        &mut self,
+        connection: &mut SqliteConnection,
+        uuid: Uuid,
+    ) -> Result<Txid, Box<dyn Error>> {
+        let psbt = self
+            .partially_signed_txs
+            .get_mut(&uuid.to_string())
+            .ok_or("failed to find PSBT")?;
+
+        let raw_transaction = psbt.inner().clone().extract_tx();
+        let tx_id = raw_transaction.txid();
+
+        self.blockchain.broadcast(&raw_transaction)?;
+        psbt.remove(connection)?;
+
+        Ok(tx_id)
     }
 
     pub fn remove(&mut self, connection: &mut SqliteConnection) -> Result<(), Box<dyn Error>> {

@@ -56,7 +56,7 @@ impl Psbt {
         self.bdk_handle.to_string()
     }
 
-    pub fn bdk_handle(&mut self) -> &mut PartiallySignedTransaction {
+    pub fn inner(&mut self) -> &mut PartiallySignedTransaction {
         &mut self.bdk_handle
     }
 
