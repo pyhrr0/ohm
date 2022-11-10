@@ -222,7 +222,7 @@ async fn handle_psbt_requests(
         PsbtOptions::Register { wallet_id, psbt } => {
             let request = Request::new(proto::RegisterPsbtRequest {
                 wallet_id: wallet_id.to_string(),
-                psbt: psbt.clone(),
+                base64: psbt.clone(),
             });
             Ok(Response::RegisterPsbt(client.register_psbt(request).await?))
         }

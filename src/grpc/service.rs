@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Mutex};
 
 use bdk::{
-    bitcoin::{util::bip32, Address},
+    bitcoin::{psbt::PartiallySignedTransaction, util::bip32, Address},
     descriptor::DescriptorPublicKey,
 };
 use diesel::SqliteConnection;
@@ -306,15 +306,34 @@ impl grpc_server::OhmApi for Servicer {
             .map_err(|_| Status::internal("failed to create a psbt"))?;
 
         Ok(Response::new(proto::CreatePsbtResponse {
-            psbt: Some((&*psbt).into()),
+            psbt: Some(psbt.into()),
         }))
     }
 
     async fn register_psbt(
         &self,
-        _request: Request<proto::RegisterPsbtRequest>,
+        request: Request<proto::RegisterPsbtRequest>,
     ) -> Result<Response<proto::RegisterPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let inner = request.into_inner();
+
+        let uuid = Uuid::from_str(&inner.wallet_id)
+            .map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let psbt = PartiallySignedTransaction::from_str(&inner.base64)
+            .map_err(|_| Status::invalid_argument("invalid PSBT"))?;
+
+        let mut wallet = Wallet::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+
+        let psbt = wallet
+            .import_psbt(&mut connection, psbt)
+            .map_err(|_| Status::internal("failed to register psbt"))?;
+
+        Ok(Response::new(proto::RegisterPsbtResponse {
+            psbt: Some(psbt.into()),
+        }))
     }
 
     async fn get_psbt(

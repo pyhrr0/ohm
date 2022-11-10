@@ -1,7 +1,7 @@
 use std::{collections::HashMap, error::Error, str::FromStr};
 
 use bdk::{
-    bitcoin::{util::bip32, Address},
+    bitcoin::{psbt::PartiallySignedTransaction, util::bip32, Address},
     blockchain::ElectrumBlockchain,
     database::MemoryDatabase,
     descriptor,
@@ -302,7 +302,7 @@ impl Wallet {
         connection: &mut SqliteConnection,
         amount: Decimal,
         recipient: Address,
-    ) -> Result<&mut Psbt, Box<dyn Error>> {
+    ) -> Result<&Psbt, Box<dyn Error>> {
         let mut builder = self.bdk_handle.build_tx();
         builder
             .add_recipient(
@@ -312,7 +312,15 @@ impl Wallet {
             .enable_rbf()
             .fee_rate(FeeRate::from_sat_per_vb(1.0));
 
-        let (bdk_handle, _details) = builder.finish()?;
+        let (psbt, _details) = builder.finish()?;
+        self.import_psbt(connection, psbt)
+    }
+
+    pub fn import_psbt(
+        &mut self,
+        connection: &mut SqliteConnection,
+        bdk_handle: PartiallySignedTransaction,
+    ) -> Result<&Psbt, Box<dyn Error>> {
         let mut psbt = Psbt::new(
             bdk_handle,
             Uuid::from_str(self.uuid.as_ref().ok_or("please save this wallet first")?)?,

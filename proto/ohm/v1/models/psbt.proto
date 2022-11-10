@@ -22,7 +22,7 @@ message CreatePsbtResponse {
 
 message RegisterPsbtRequest {
   string wallet_id = 1;
-  string psbt = 2;
+  string base64 = 2;
 }
 
 message RegisterPsbtResponse {
