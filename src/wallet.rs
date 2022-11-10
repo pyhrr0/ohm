@@ -8,7 +8,7 @@ use bdk::{
     electrum_client::Client,
     keys::{IntoDescriptorKey, ScriptContext},
     wallet::AddressIndex,
-    Balance, FeeRate, SyncOptions,
+    Balance, FeeRate, SignOptions, SyncOptions,
 };
 use diesel::SqliteConnection;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
@@ -330,7 +330,24 @@ impl Wallet {
         let uuid = psbt.uuid().unwrap().to_string();
         self.partially_signed_txs.insert(uuid.clone(), psbt);
 
-        Ok(self.partially_signed_txs.get_mut(&uuid).unwrap())
+        Ok(self.partially_signed_txs.get(&uuid).unwrap())
+    }
+
+    pub fn sign_psbt(
+        &mut self,
+        connection: &mut SqliteConnection,
+        uuid: Uuid,
+    ) -> Result<&Psbt, Box<dyn Error>> {
+        let psbt = self
+            .partially_signed_txs
+            .get_mut(&uuid.to_string())
+            .ok_or("failed to find PSBT")?;
+
+        self.bdk_handle
+            .sign(psbt.bdk_handle(), SignOptions::default())?;
+        psbt.save(connection)?;
+
+        Ok(psbt)
     }
 
     pub fn remove(&mut self, connection: &mut SqliteConnection) -> Result<(), Box<dyn Error>> {

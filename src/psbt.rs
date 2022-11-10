@@ -8,17 +8,15 @@ use crate::db;
 
 pub struct Psbt {
     uuid: Option<String>,
-    base64: String,
+    bdk_handle: PartiallySignedTransaction,
     wallet: Uuid,
-    _bdk_handle: PartiallySignedTransaction,
 }
 
 impl Psbt {
     pub fn new(bdk_handle: PartiallySignedTransaction, wallet: Uuid) -> Self {
         Self {
             uuid: None,
-            base64: bdk_handle.to_string(),
-            _bdk_handle: bdk_handle,
+            bdk_handle,
             wallet,
         }
     }
@@ -46,8 +44,7 @@ impl Psbt {
         for record in records {
             transactions.push(Psbt {
                 uuid: Some(record.uuid),
-                _bdk_handle: PartiallySignedTransaction::from_str(&record.base64)?,
-                base64: record.base64,
+                bdk_handle: PartiallySignedTransaction::from_str(&record.base64)?,
                 wallet: Uuid::from_str(&record.wallet_uuid)?,
             });
         }
@@ -55,8 +52,12 @@ impl Psbt {
         Ok(transactions)
     }
 
-    pub fn base64(&self) -> &str {
-        &self.base64
+    pub fn base64(&self) -> String {
+        self.bdk_handle.to_string()
+    }
+
+    pub fn bdk_handle(&mut self) -> &mut PartiallySignedTransaction {
+        &mut self.bdk_handle
     }
 
     pub fn wallet(&self) -> &Uuid {
@@ -77,7 +78,8 @@ impl Psbt {
     }
 
     pub fn save(&mut self, connection: &mut SqliteConnection) -> Result<(), Box<dyn Error>> {
-        let mut new_record = db::Psbt::new(&self.base64, &self.wallet);
+        let base64 = self.base64();
+        let mut new_record = db::Psbt::new(&base64, &self.wallet);
 
         if let Some(uuid) = &self.uuid {
             new_record.uuid = uuid.clone();

@@ -66,7 +66,7 @@ impl From<&crate::Psbt> for Psbt {
             psbt_id: psbt
                 .uuid()
                 .map_or(String::from(""), |uuid| uuid.to_string()),
-            base64: psbt.base64().to_string(),
+            base64: psbt.base64(),
             wallet_id: psbt.wallet().to_string(),
         }
     }

@@ -376,9 +376,29 @@ impl grpc_server::OhmApi for Servicer {
 
     async fn sign_psbt(
         &self,
-        _request: Request<proto::SignPsbtRequest>,
+        request: Request<proto::SignPsbtRequest>,
     ) -> Result<Response<proto::SignPsbtResponse>, Status> {
-        unimplemented!()
+        let mut connection = self.db_connection.lock().unwrap();
+        let psbt_id = request.into_inner().psbt_id;
+
+        let uuid =
+            Uuid::from_str(&psbt_id).map_err(|_| Status::invalid_argument("invalid UUID"))?;
+
+        let psbt = Psbt::from_db(&mut connection, Some(uuid))
+            .map_err(|_| Status::internal("failed to enumerate psbts"))?
+            .ok_or_else(|| Status::not_found("psbt could not be found"))?;
+
+        let mut wallet = Wallet::from_db(&mut connection, Some(*psbt.wallet()))
+            .map_err(|_| Status::internal("failed to enumerate wallets"))?
+            .ok_or_else(|| Status::not_found("wallet could not be found"))?;
+
+        let signed_psbt = wallet
+            .sign_psbt(&mut connection, uuid)
+            .map_err(|_| Status::internal("failed to sign psbt"))?;
+
+        Ok(Response::new(proto::SignPsbtResponse {
+            psbt: Some(signed_psbt.into()),
+        }))
     }
 
     async fn combine_with_other_psbt(
