@@ -1,0 +1,4 @@
+bind_addr: "127.0.0.1"
+port: 1234
+backend_url: "ssl://electrum.blockstream.info:60002"
+db_path: "./ohm.sqlite"
